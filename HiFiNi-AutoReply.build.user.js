@@ -1,12 +1,16 @@
 // ==UserScript==
 // @name         Hifini 半自动回复内容
-// @namespace    http://tampermonkey.net/
-// @version      2025-04-27
-// @description  try to take over the world!
-// @author       You
-// @match        https://hifini.com/thread-256032.htm
+// @namespace    DaoLuoLTS
+// @author       DaoluoLTS
+// @collaborator DaoluoLTS
+// @copyright    2025, DaoLuoLTS (https://openuserjs.org/users/DaoLuoLTS)
+// @homepageURL  https://github.com/ShenHaiSu/Script-Collection
+// @supportURL   https://github.com/ShenHaiSu/Script-Collection/issues
+// @version      1.0.0
+// @description  在HiFiNi的签到页面自动完成签到
+// @match        https://hifini.com/thread-*.htm
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=hifini.com
-// @grant        none
+// @updateURL    https://github.com/ShenHaiSu/Script-Collection/raw/refs/heads/main/HiFiNi-AutoReply.build.user.js
 // @license      MIT
 // ==/UserScript==
 

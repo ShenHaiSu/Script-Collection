@@ -3,7 +3,7 @@
 // @namespace    DaoLuoLTS
 // @author       DaoluoLTS
 // @collaborator DaoluoLTS
-// @license      MIT
+
 // @copyright    2025, DaoLuoLTS (https://openuserjs.org/users/DaoLuoLTS)
 // @homepageURL  https://github.com/ShenHaiSu/Script-Collection
 // @supportURL   https://github.com/ShenHaiSu/Script-Collection/issues
@@ -12,6 +12,7 @@
 // @match        https://hifini.com/thread-*.htm
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=hifini.com
 // @updateURL    https://github.com/ShenHaiSu/Script-Collection/raw/refs/heads/main/HiFiNi-AutoReply.build.user.js
+// @license      MIT
 // ==/UserScript==
 
 (function () {

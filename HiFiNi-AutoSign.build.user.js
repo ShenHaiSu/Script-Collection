@@ -4,13 +4,13 @@
 // @author       DaoluoLTS
 // @collaborator DaoluoLTS
 // @copyright    2025, DaoLuoLTS (https://openuserjs.org/users/DaoLuoLTS)
-// @homepageURL  https://github.com/ShenHaiSu/Script-HiFiniAutoSign
-// @supportURL   https://github.com/ShenHaiSu/Script-HiFiniAutoSign/issues
+// @homepageURL  https://github.com/ShenHaiSu/Script-Collection
+// @supportURL   https://github.com/ShenHaiSu/Script-Collection/issues
 // @version      1.0.0
 // @description  在HiFiNi的签到页面自动完成签到
 // @match        https://hifini.com/sg_sign.htm
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=hifini.com
-// @updateURL    https://github.com/ShenHaiSu/Script-HiFiniAutoSign/raw/refs/heads/main/user.js
+// @updateURL    https://github.com/ShenHaiSu/Script-Collection/raw/refs/heads/main/HiFiNi-AutoSign.build.user.js
 // @license      MIT
 // ==/UserScript==
 

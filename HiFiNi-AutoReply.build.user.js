@@ -6,7 +6,7 @@
 // @copyright    2025, DaoLuoLTS (https://openuserjs.org/users/DaoLuoLTS)
 // @homepageURL  https://github.com/ShenHaiSu/Script-Collection
 // @supportURL   https://github.com/ShenHaiSu/Script-Collection/issues
-// @version      1.0.0
+// @version      1.0.1
 // @description  在HiFiNi的主题界面点击按钮自动回帖
 // @match        https://hifini.com/thread-*.htm
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=hifini.com

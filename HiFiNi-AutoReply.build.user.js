@@ -7,6 +7,7 @@
 // @match        https://hifini.com/thread-256032.htm
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=hifini.com
 // @grant        none
+// @license      MIT
 // ==/UserScript==
 
 (function () {

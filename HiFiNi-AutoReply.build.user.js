@@ -15,7 +15,10 @@
 // ==/UserScript==
 
 (function () {
-  // 文本库
+  /**
+   * 文本库，包含自动回复的预设文本内容。
+   * @type {string[]}
+   */
   const textLibrary = [
     "感谢楼主的分享，内容很有意思！",
     "感谢分享！",
@@ -29,28 +32,46 @@
     "必须顶起来，让更多人看到这么好的分享！",
   ];
 
-  // 运行时数据存储
+  /**
+   * 运行时数据存储对象。
+   * @type {{ timerFlag: number | null }}
+   */
   const runtimeData = {
     timerFlag: null, // 定时器标志
   };
 
-  // 定时器主体，用于检测当前网页是否已经挂载了自动回复按钮
+  /**
+   * 定时器主体，用于检测当前网页是否已经挂载了自动回复按钮。
+   */
   runtimeData.timerFlag = setInterval(() => {
     const checkResult = document.querySelector("div.col-lg-3.d-none.d-lg-block.aside>a[dl-name]");
     if (!checkResult) mountAutoReplyButton();
     clearInterval(runtimeData.timerFlag);
   }, 500);
 
-  // 挂载自动回复按钮
+  /**
+   * 挂载自动回复按钮到页面的指定位置。
+   */
   function mountAutoReplyButton() {
-    // 初始化构建
+    /**
+     * 目标父节点，用于挂载按钮。
+     * @type {HTMLElement | null}
+     */
     const targetParentNode = document.querySelector("div.col-lg-3.d-none.d-lg-block.aside");
+    if (!targetParentNode) return;
+
+    /**
+     * 按钮挂载位置的参考节点。
+     * @type {HTMLElement | null}
+     */
     const targetPrevNode = targetParentNode.querySelector("a");
+
+    // 创建新的按钮节点
     const newNode = document.createElement("a");
     newNode.setAttribute("class", "btn btn-primary btn-block mb-3 text-white");
     newNode.setAttribute("dl-name", "replyButton");
     newNode.setAttribute("role", "button");
-    newNode.innerText = "自动回复帖子"
+    newNode.innerText = "自动回复帖子";
 
     // 挂载按钮
     targetParentNode.insertBefore(newNode, targetPrevNode);
@@ -59,17 +80,26 @@
     newNode.addEventListener("click", () => handleButtonClick());
   }
 
-  // 按钮点击事件处理函数
+  /**
+   * 自动回复按钮的点击事件处理函数。
+   */
   function handleButtonClick() {
-    // 获取当前输入框
+    /**
+     * 获取当前输入框节点。
+     * @type {HTMLTextAreaElement | null}
+     */
     const textareaNode = document.querySelector("div.message.mt-1>textarea");
     if (!textareaNode) return;
 
-    // 随机选择一条文本,填充文本到输入框
+    // 随机选择一条文本，填充到输入框
     const randomText = textLibrary[Math.floor(Math.random() * textLibrary.length)];
     textareaNode.value = randomText;
 
-    // 提交回帖按钮
-    document.querySelector("div>button[type='submit'][id=submit]").click();
+    /**
+     * 提交回帖按钮节点。
+     * @type {HTMLButtonElement | null}
+     */
+    const submitButton = document.querySelector("div>button[type='submit'][id=submit]");
+    if (submitButton) submitButton.click();
   }
 })();

@@ -42,64 +42,88 @@
 
   /**
    * 定时器主体，用于检测当前网页是否已经挂载了自动回复按钮。
+   * 持续检测直到成功挂载按钮
    */
   runtimeData.timerFlag = setInterval(() => {
-    const checkResult = document.querySelector("div.col-lg-3.d-none.d-lg-block.aside>a[dl-name]");
-    if (!checkResult) mountAutoReplyButton();
-    clearInterval(runtimeData.timerFlag);
+    try {
+      const checkResult = document.querySelector("div.col-lg-3.d-none.d-lg-block.aside>a[dl-name]");
+      if (!checkResult) {
+        mountAutoReplyButton();
+      } else {
+        clearInterval(runtimeData.timerFlag);
+      }
+    } catch (error) {
+      console.error('自动回复脚本错误:', error);
+    }
   }, 500);
 
   /**
    * 挂载自动回复按钮到页面的指定位置。
    */
   function mountAutoReplyButton() {
-    /**
-     * 目标父节点，用于挂载按钮。
-     * @type {HTMLElement | null}
-     */
-    const targetParentNode = document.querySelector("div.col-lg-3.d-none.d-lg-block.aside");
-    if (!targetParentNode) return;
+    // 缓存常用选择器
+    const parentSelector = "div.col-lg-3.d-none.d-lg-block.aside";
+    const prevNodeSelector = "a";
+    
+    try {
+      /**
+       * 目标父节点，用于挂载按钮。
+       * @type {HTMLElement | null}
+       */
+      const targetParentNode = document.querySelector(parentSelector);
+      if (!targetParentNode) return;
 
-    /**
-     * 按钮挂载位置的参考节点。
-     * @type {HTMLElement | null}
-     */
-    const targetPrevNode = targetParentNode.querySelector("a");
+      /**
+       * 按钮挂载位置的参考节点。
+       * @type {HTMLElement | null}
+       */
+      const targetPrevNode = targetParentNode.querySelector(prevNodeSelector);
 
-    // 创建新的按钮节点
-    const newNode = document.createElement("a");
-    newNode.setAttribute("class", "btn btn-primary btn-block mb-3 text-white");
-    newNode.setAttribute("dl-name", "replyButton");
-    newNode.setAttribute("role", "button");
-    newNode.innerText = "自动回复帖子";
+      // 创建新的按钮节点
+      const newNode = document.createElement("a");
+      newNode.setAttribute("class", "btn btn-primary btn-block mb-3 text-white");
+      newNode.setAttribute("dl-name", "replyButton");
+      newNode.setAttribute("role", "button");
+      newNode.innerText = "自动回复帖子";
 
-    // 挂载按钮
-    targetParentNode.insertBefore(newNode, targetPrevNode);
+      // 挂载按钮
+      targetParentNode.insertBefore(newNode, targetPrevNode);
 
-    // 绑定点击事件
-    newNode.addEventListener("click", () => handleButtonClick());
+      // 绑定点击事件
+      newNode.addEventListener("click", () => handleButtonClick());
+    } catch (error) {
+      console.error('挂载自动回复按钮错误:', error);
+    }
   }
 
   /**
    * 自动回复按钮的点击事件处理函数。
    */
   function handleButtonClick() {
-    /**
-     * 获取当前输入框节点。
-     * @type {HTMLTextAreaElement | null}
-     */
-    const textareaNode = document.querySelector("div.message.mt-1>textarea");
-    if (!textareaNode) return;
+    try {
+      // 缓存常用选择器
+      const textareaSelector = "div.message.mt-1>textarea";
+      const submitButtonSelector = "div>button[type='submit'][id=submit]";
+      
+      /**
+       * 获取当前输入框节点。
+       * @type {HTMLTextAreaElement | null}
+       */
+      const textareaNode = document.querySelector(textareaSelector);
+      if (!textareaNode) return;
 
-    // 随机选择一条文本，填充到输入框
-    const randomText = textLibrary[Math.floor(Math.random() * textLibrary.length)];
-    textareaNode.value = randomText;
+      // 随机选择一条文本，填充到输入框
+      const randomText = textLibrary[Math.floor(Math.random() * textLibrary.length)];
+      textareaNode.value = randomText;
 
-    /**
-     * 提交回帖按钮节点。
-     * @type {HTMLButtonElement | null}
-     */
-    const submitButton = document.querySelector("div>button[type='submit'][id=submit]");
-    if (submitButton) submitButton.click();
+      /**
+       * 提交回帖按钮节点。
+       * @type {HTMLButtonElement | null}
+       */
+      const submitButton = document.querySelector(submitButtonSelector);
+      if (submitButton) submitButton.click();
+    } catch (error) {
+      console.error('自动回复按钮点击错误:', error);
+    }
   }
 })();

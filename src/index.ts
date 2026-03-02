@@ -88,8 +88,13 @@ async function buildScripts() {
             bundle: true,
             outfile: outputPath,
             format: "iife", // 油猴脚本通常使用 IIFE 格式
-            target: "esnext",
+            target: "es2020", // 显式指定现代 ES 版本以保留 const/let 并提高执行效率
             charset: "utf8",
+            treeShaking: true, // 开启摇树优化，移除未使用的代码
+            minify: false, // 保持代码可读性，方便油猴脚本审核
+            supported: {
+              "const-and-let": true, // 强制保留 const/let 定义
+            },
             banner: {
               js: banner,
             },

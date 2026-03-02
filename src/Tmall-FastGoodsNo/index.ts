@@ -1,3 +1,5 @@
+import { updateReactInput } from "../dev-tool/react-inputUpdate";
+
 // 给 Document 添加按键监听
 document.addEventListener("keydown", (event: KeyboardEvent) => {
   // 检查是否按下回车键
@@ -30,35 +32,10 @@ document.addEventListener("keydown", (event: KeyboardEvent) => {
   event.preventDefault();
   event.stopPropagation();
 
-  // React 受控组件需要触发 input 和 change 事件来更新状态
-  // 使用 _valueTracker 来标记值已改变（React 内部机制）
-  const valueTracker = (input as any)._valueTracker;
-  if (valueTracker) {
-    valueTracker.setValue(input.value);
-  }
+  // 使用工具函数触发 React 内存更新（不改变 value 值）
+  updateReactInput(input);
 
-  // 触发 React 兼容的 input 事件（使用 CompositionEvent 可能更有效）
-  const inputEvent = new Event("input", {
-    bubbles: true,
-    cancelable: true,
-  });
-  input.dispatchEvent(inputEvent);
-
-  // 触发 change 事件
-  const changeEvent = new Event("change", {
-    bubbles: true,
-    cancelable: true,
-  });
-  input.dispatchEvent(changeEvent);
-
-  // 触发 blur 事件让 React 更新状态
-  const blurEvent = new FocusEvent("blur", {
-    bubbles: true,
-    cancelable: true,
-  });
-  input.dispatchEvent(blurEvent);
-
-  // 500ms 之后寻找 button.next-btn.next-medium.next-btn-primary 按钮并触发 click 行为
+  // 1000ms 之后寻找 button.next-btn.next-medium.next-btn-primary 按钮并触发 click 行为
   // 增加等待时间确保 React 有足够时间更新状态
   setTimeout(() => {
     const buttons = document.querySelectorAll("button.next-btn.next-medium.next-btn-primary");
@@ -73,5 +50,5 @@ document.addEventListener("keydown", (event: KeyboardEvent) => {
     } else {
       console.error("未找到按钮：button.next-btn.next-medium.next-btn-primary");
     }
-  }, 500);
+  }, 1000);
 });

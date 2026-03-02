@@ -1,3 +1,5 @@
+/// <reference types="tampermonkey" />
+
 /**
  * 封装油猴脚本的 GM_xmlhttpRequest，提供类似 fetch 的调用体验
  * @param url 请求地址
@@ -5,8 +7,20 @@
  * @returns 返回响应对象的 Promise
  */
 // #region gmFetch 封装
-export interface GmFetchOptions extends Omit<Tampermonkey.Request, "url" | "onload" | "onerror" | "onabort" | "ontimeout" | "onprogress" | "onreadystatechange"> {
-  method?: "GET" | "POST" | "PUT" | "DELETE" | "HEAD" | "OPTIONS" | "PATCH";
+export interface GmFetchOptions extends Omit<
+  Tampermonkey.Request,
+  | "url"
+  | "onload"
+  | "onerror"
+  | "onabort"
+  | "ontimeout"
+  | "onprogress"
+  | "onreadystatechange"
+  | "method"
+  | "headers"
+  | "data"
+> {
+  method?: "GET" | "POST" | "PUT" | "DELETE" | "HEAD";
   headers?: Record<string, string>;
   body?: string | FormData | Blob | ArrayBuffer;
 }

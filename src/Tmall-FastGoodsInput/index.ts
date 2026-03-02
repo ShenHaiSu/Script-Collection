@@ -1,18 +1,5 @@
 import { initCateLabelLarge } from "./cateLabelLarge";
-
-// #region 类型定义
-/**
- * 脚本特性配置项
- */
-interface FeatureConfig {
-  /** 特性开关 */
-  enabled: boolean;
-  /** 特性初始化函数 */
-  init: () => void;
-  /** 特性名称描述 */
-  description: string;
-}
-// #endregion
+import type { FeatureConfig } from "./types";
 
 // #region 配置与特性注册
 /**

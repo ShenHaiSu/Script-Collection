@@ -1,4 +1,5 @@
 import { sayWelcome } from "./helper";
+import { gmFetch } from "../dev-tool/gmFetch";
 
 console.log("Hello from Example Script!");
 
@@ -12,5 +13,25 @@ function greet(name: string) {
 }
 // #endregion
 
+// #region 获取 GitHub 信息示例
+/**
+ * 演示使用封装后的 gmFetch
+ */
+async function fetchGithubRepo() {
+  try {
+    const response = await gmFetch("https://api.github.com/repos/ShenHaiSu/Script-Collection");
+    if (response.ok) {
+      const data = response.json();
+      console.log("GitHub 仓库信息:", data);
+    } else {
+      console.error("请求失败:", response.status, response.statusText);
+    }
+  } catch (error) {
+    console.error("请求异常:", error);
+  }
+}
+// #endregion
+
 greet("Tampermonkey User");
 sayWelcome("Developer");
+fetchGithubRepo();

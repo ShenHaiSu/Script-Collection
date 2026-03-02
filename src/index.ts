@@ -56,9 +56,9 @@ async function buildScripts() {
   const srcDir = __dirname;
   const entries = fs.readdirSync(srcDir, { withFileTypes: true });
 
+  // 仅处理文件夹且排除特殊文件夹和工具库文件夹
   for (const entry of entries) {
-    // 仅处理文件夹且排除特殊文件夹
-    if (entry.isDirectory() && entry.name !== "node_modules" && !entry.name.startsWith(".")) {
+    if (entry.isDirectory() && entry.name !== "node_modules" && entry.name !== "dev-tool" && !entry.name.startsWith(".")) {
       const folderPath = path.join(srcDir, entry.name);
       const indexPath = path.join(folderPath, "index.ts");
       const metaPath = path.join(folderPath, "meta.ts");

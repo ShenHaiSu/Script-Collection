@@ -48,7 +48,7 @@ export const meta = {
   grant: ["GM_xmlhttpRequest", "GM_setValue", "GM_getValue", "GM_addStyle", "GM_registerMenuCommand"],
 
   // @connect: 允许跨域请求的域名白名单，用于 GM_xmlhttpRequest。
-  connect: ["api.example.com", "bing.com"],
+  connect: ["api.example.com", "bing.com", "api.github.com"],
 
   // @run-at: 脚本开始运行的时机。
   // document-start: 尽早运行；

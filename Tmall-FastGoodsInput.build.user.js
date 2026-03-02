@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫商品详情交互增强插件 (FastGoodsInput)
-// @version      2026.03.02.19.23.48
+// @version      2026.03.02.19.35.58
 // @description  在商品详情填写页面，提供多种更符合心流的交互方式，提升填写效率，降低错误率。
 // @author       DaoLuoLTS
 // @match        https://sell.publish.tmall.com/tmall/publish.htm?*
@@ -19,7 +19,6 @@
   function handleTreeLabelClick(event) {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-    console.log(target);
     if (!target.matches("div.next-tree-node-label.next-tree-node-label-selectable")) return;
     const wrapper = target.closest("div.next-tree-node-label-wrapper");
     if (!wrapper) return;

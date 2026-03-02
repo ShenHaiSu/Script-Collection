@@ -50,63 +50,146 @@ function generateBanner(meta: any): string {
 }
 
 /**
- * 扫描 src 目录下的子文件夹并进行打包
+ * 扫描 src 目录下的子文件夹并根据规则进行打包
  */
 async function buildScripts() {
   const srcDir = __dirname;
-  const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+  const args = process.argv.slice(2);
+  let targetFolders: string[] = [];
 
-  // 仅处理文件夹且排除特殊文件夹和工具库文件夹
-  for (const entry of entries) {
-    if (entry.isDirectory() && entry.name !== "node_modules" && entry.name !== "dev-tool" && !entry.name.startsWith(".")) {
+  // 获取所有有效的打包项目文件夹
+  const allEntries = fs.readdirSync(srcDir, { withFileTypes: true });
+  const validProjectFolders = allEntries
+    .filter((entry) => {
+      if (!entry.isDirectory()) return false;
+      if (["node_modules", "dev-tool"].includes(entry.name) || entry.name.startsWith(".")) return false;
+
       const folderPath = path.join(srcDir, entry.name);
-      const indexPath = path.join(folderPath, "index.ts");
-      const metaPath = path.join(folderPath, "meta.ts");
+      return fs.existsSync(path.join(folderPath, "index.ts")) && fs.existsSync(path.join(folderPath, "meta.ts"));
+    })
+    .map((entry) => entry.name);
 
-      // 检查 index.ts 和 meta.ts 是否存在
-      if (fs.existsSync(indexPath) && fs.existsSync(metaPath)) {
-        console.log(`正在处理脚本: ${entry.name}...`);
+  if (args.length > 0) {
+    // 1. 如果传入了参数，则仅打包指定的文件夹
+    const specifiedFolder = args[0];
+    if (validProjectFolders.includes(specifiedFolder)) {
+      targetFolders = [specifiedFolder];
+      console.log(`指定打包项目: ${specifiedFolder}`);
+    } else {
+      console.error(`错误: 找不到指定的项目文件夹 "${specifiedFolder}" 或该文件夹不包含 index.ts/meta.ts`);
+      process.exit(1);
+    }
+  } else {
+    // 2. 如果没有传入参数，获取修改日期最新的五个文件所属的项目
+    console.log("未指定打包项目，将自动识别最近修改的项目...");
 
-        try {
-          // 动态导入元数据 (使用绝对路径)
-          // tsx 环境下可以直接 import ts 文件
-          const { meta } = await import(pathToFileURL(metaPath).href);
+    const allFiles: { folder: string; mtime: number; path: string }[] = [];
 
-          if (!meta) {
-            console.error(`错误: ${entry.name}/meta.ts 未导出 meta 对象`);
-            continue;
+    validProjectFolders.forEach((folderName) => {
+      const folderPath = path.join(srcDir, folderName);
+
+      // 递归获取文件夹内所有文件
+      const getFiles = (dir: string) => {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            getFiles(fullPath);
+          } else {
+            const stats = fs.statSync(fullPath);
+            allFiles.push({
+              folder: folderName,
+              mtime: stats.mtimeMs,
+              path: fullPath,
+            });
           }
-
-          const banner = generateBanner(meta);
-          // 输出到与 src 同级别的目录
-          const rootDir = path.join(srcDir, "..");
-          const outputPath = path.join(rootDir, `${entry.name}.build.user.js`);
-
-          // 使用 esbuild 进行打包
-          await esbuild.build({
-            entryPoints: [indexPath],
-            bundle: true,
-            outfile: outputPath,
-            format: "iife", // 油猴脚本通常使用 IIFE 格式
-            target: "es2020", // 显式指定现代 ES 版本以保留 const/let 并提高执行效率
-            charset: "utf8",
-            treeShaking: true, // 开启摇树优化，移除未使用的代码
-            minify: false, // 保持代码可读性，方便油猴脚本审核
-            supported: {
-              "const-and-let": true, // 强制保留 const/let 定义
-            },
-            banner: {
-              js: banner,
-            },
-            legalComments: "none",
-            logLevel: "info",
-          });
-
-          console.log(`成功打包: ${outputPath}`);
-        } catch (error) {
-          console.error(`处理 ${entry.name} 时发生错误:`, error);
         }
+      };
+
+      getFiles(folderPath);
+    });
+
+    // 按修改时间降序排列，取前 5 个
+    allFiles.sort((a, b) => b.mtime - a.mtime);
+    const topFiles = allFiles.slice(0, 5);
+
+    // 打印最新修改的 5 个文件及其修改日期
+    if (topFiles.length > 0) {
+      console.log("\n最近修改的文件 (前 5 个):");
+      console.log("--------------------------------------------------------------------------------");
+      topFiles.forEach((file) => {
+        const relativePath = path.relative(path.join(srcDir, ".."), file.path);
+        const mtimeStr = new Date(file.mtime).toLocaleString("zh-CN", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        });
+        console.log(`- ${relativePath.padEnd(60)} [${mtimeStr}]`);
+      });
+      console.log("--------------------------------------------------------------------------------");
+    }
+
+    // 归一化整理所属项目文件夹 (去重)
+    targetFolders = Array.from(new Set(topFiles.map((file) => file.folder)));
+
+    if (targetFolders.length === 0) {
+      console.log("未发现可打包的项目。");
+      return;
+    }
+
+    console.log(`识别到最近修改的项目: ${targetFolders.join(", ")}`);
+  }
+
+  // 开始打包
+  for (const folderName of targetFolders) {
+    const folderPath = path.join(srcDir, folderName);
+    const indexPath = path.join(folderPath, "index.ts");
+    const metaPath = path.join(folderPath, "meta.ts");
+
+    console.log(`\n正在处理脚本: ${folderName}...`);
+
+    try {
+      // 动态导入元数据 (使用绝对路径)
+      // tsx 环境下可以直接 import ts 文件
+      const { meta } = await import(pathToFileURL(metaPath).href);
+
+      if (!meta) {
+        console.error(`错误: ${folderName}/meta.ts 未导出 meta 对象`);
+        continue;
       }
+
+      const banner = generateBanner(meta);
+      // 输出到与 src 同级别的目录
+      const rootDir = path.join(srcDir, "..");
+      const outputPath = path.join(rootDir, `${folderName}.build.user.js`);
+
+      // 使用 esbuild 进行打包
+      await esbuild.build({
+        entryPoints: [indexPath],
+        bundle: true,
+        outfile: outputPath,
+        format: "iife", // 油猴脚本通常使用 IIFE 格式
+        target: "es2020", // 显式指定现代 ES 版本以保留 const/let 并提高执行效率
+        charset: "utf8",
+        treeShaking: true, // 开启摇树优化，移除未使用的代码
+        minify: false, // 保持代码可读性，方便油猴脚本审核
+        supported: {
+          "const-and-let": true, // 强制保留 const/let 定义
+        },
+        banner: {
+          js: banner,
+        },
+        legalComments: "none",
+        logLevel: "info",
+      });
+
+      console.log(`成功打包: ${outputPath}`);
+    } catch (error) {
+      console.error(`处理 ${folderName} 时发生错误:`, error);
     }
   }
 }

@@ -23,19 +23,13 @@ export const meta = {
     // 生成 yyyy.mm.dd.hh.mm.ss 格式的版本号
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
-    return [
-      now.getFullYear(),
-      pad(now.getMonth() + 1),
-      pad(now.getDate()),
-      pad(now.getHours()),
-      pad(now.getMinutes()),
-      pad(now.getSeconds()),
-    ].join(".");
+    return [now.getFullYear(), pad(now.getMonth() + 1), pad(now.getDate()), pad(now.getHours()), pad(now.getMinutes()), pad(now.getSeconds())].join(
+      ".",
+    );
   },
 
   // @description: 脚本的功能描述。建议简明扼要，支持多语言（例如使用 @description:zh-CN）。
-  description:
-    "在商品发布页面的搜索发品界面，用户输入完毕货号之后直接按下回车键，会自动点击确认按钮，跳转到商品详情页面。",
+  description: "在商品发布页面的搜索发品界面，用户输入完毕货号之后直接按下回车键，会自动点击确认按钮，跳转到商品详情页面。",
 
   // @author: 脚本作者的名称。
   author: "DaoLuoLTS",
@@ -45,7 +39,7 @@ export const meta = {
 
   // @match: 脚本生效的 URL 模式。支持通配符。
   // 在打包逻辑中，数组形式会生成多行 @match 标签。
-  match: ["https://sell.publish.tmall.com/tmall/ai/category.htm?*"],
+  match: ["https://sell.publish.tmall.com/tmall/ai/category.htm*"],
 
   // @include / @exclude: 包含或排除特定的 URL。
   exclude: [],

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫商品发布页面货号填写后快速跳转 (FastGoodsNo)
-// @version      2026.03.05.23.18.47
+// @version      2026.03.09.21.15.00
 // @description  在商品发布页面的搜索发品界面，用户输入完毕货号之后直接按下回车键，会自动点击确认按钮，跳转到商品详情页面。
 // @author       DaoLuoLTS
 // @match        https://sell.publish.tmall.com/tmall/ai/category.htm*

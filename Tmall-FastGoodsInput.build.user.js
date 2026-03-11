@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫商品详情交互增强插件 (FastGoodsInput)
-// @version      2026.03.09.21.15.00
+// @version      2026.03.11.21.14.29
 // @description  在商品详情填写页面，提供多种更符合心流的交互方式，提升填写效率，降低错误率。
 // @author       DaoLuoLTS
 // @match        https://sell.publish.tmall.com/tmall/publish.htm?*
@@ -35,6 +35,146 @@
     document.addEventListener("click", handleTreeLabelClick, true);
   }
 
+  // Tmall-FastGoodsInput/helper.ts
+  function isInput(element) {
+    return element instanceof HTMLInputElement;
+  }
+
+  // Tmall-FastGoodsInput/tabToOverlayInput.ts
+  var isTabToOverlayInputInitialized = false;
+  function handleKeyDown(event) {
+    if (event._skipTabToOverlayInput) return;
+    if (event.key !== "Tab") return;
+    const target = event.target;
+    if (!isInput(target)) return;
+    const popupSpan = target.closest('span[aria-haspopup="true"][aria-expanded="true"]');
+    if (!popupSpan) return;
+    const openedOverlay = document.querySelector("div.next-overlay-wrapper.opened");
+    if (!openedOverlay) return;
+    const overlayInputs = openedOverlay.querySelectorAll("input");
+    const firstInput = overlayInputs[0];
+    if (!(firstInput instanceof HTMLInputElement)) return;
+    event.preventDefault();
+    firstInput.focus();
+  }
+  function initTabToOverlayInput() {
+    if (isTabToOverlayInputInitialized) return;
+    isTabToOverlayInputInitialized = true;
+    console.log("[Tmall-FastGoodsInput] Tab 快捷聚焦到浮层输入框功能已启用");
+    document.addEventListener("keydown", handleKeyDown, true);
+  }
+
+  // Tmall-FastGoodsInput/keyboardNavigation.ts
+  var SELECTED_CLASS = "tmall-fast-input-selected";
+  function injectStyles() {
+    const style = document.createElement("style");
+    style.innerHTML = `
+    .${SELECTED_CLASS} {
+      outline: 2px solid #ff4400 !important;
+      outline-offset: -2px;
+      background-color: rgba(255, 68, 0, 0.1) !important;
+      transition: all 0.1s ease;
+      z-index: 10;
+      position: relative;
+    }
+  `;
+    document.head.appendChild(style);
+  }
+  var currentItems = [];
+  var currentIndex = -1;
+  function resetState() {
+    if (currentIndex >= 0 && currentItems[currentIndex]) {
+      currentItems[currentIndex].classList.remove(SELECTED_CLASS);
+    }
+    currentItems = [];
+    currentIndex = -1;
+  }
+  function updateHighlight() {
+    currentItems.forEach((item, index) => {
+      if (index === currentIndex) {
+        item.classList.add(SELECTED_CLASS);
+        item.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      } else {
+        item.classList.remove(SELECTED_CLASS);
+      }
+    });
+  }
+  function getNavigationContext(activeElement) {
+    if (!isInput(activeElement)) return [];
+    const optionsSearch = activeElement.closest("div.options-search");
+    if (!optionsSearch) return [];
+    const optionsContent = optionsSearch.nextElementSibling;
+    if (!optionsContent || !optionsContent.classList.contains("options-content")) return [];
+    const items = Array.from(optionsContent.querySelectorAll("div.options-item"));
+    if (items.length === 0) {
+      resetState();
+      return [];
+    }
+    if (currentItems.length !== items.length || !currentItems.every((item, i) => item === items[i])) {
+      resetState();
+      currentItems = items;
+    }
+    return currentItems;
+  }
+  function simulateTab(sourceInput) {
+    setTimeout(() => {
+      if (!document.body.contains(sourceInput)) return;
+      sourceInput.focus();
+      const tabEvent = new KeyboardEvent("keydown", {
+        key: "Tab",
+        code: "Tab",
+        keyCode: 9,
+        bubbles: true,
+        cancelable: true
+      });
+      tabEvent._skipTabToOverlayInput = true;
+      sourceInput.dispatchEvent(tabEvent);
+    }, 200);
+  }
+  function handleArrowKey(event, direction, items) {
+    event.preventDefault();
+    if (currentIndex === -1) {
+      currentIndex = direction === "down" ? 0 : items.length - 1;
+    } else {
+      const step = direction === "down" ? 1 : -1;
+      currentIndex = (currentIndex + step + items.length) % items.length;
+    }
+    updateHighlight();
+  }
+  function handleEnterKey(event, items) {
+    if (currentIndex < 0 || !items[currentIndex]) return;
+    event.preventDefault();
+    const popupSpan = document.querySelector('span[aria-expanded="true"][aria-haspopup="true"]');
+    const sourceInput = popupSpan?.querySelector("input");
+    items[currentIndex].click();
+    resetState();
+    if (sourceInput instanceof HTMLInputElement) {
+      simulateTab(sourceInput);
+    }
+  }
+  function handleKeyDown2(event) {
+    const items = getNavigationContext(document.activeElement);
+    if (items.length === 0) return;
+    switch (event.key) {
+      case "ArrowDown":
+        handleArrowKey(event, "down", items);
+        break;
+      case "ArrowUp":
+        handleArrowKey(event, "up", items);
+        break;
+      case "Enter":
+        handleEnterKey(event, items);
+        break;
+      case "Escape":
+        resetState();
+        break;
+    }
+  }
+  function initKeyboardNavigation() {
+    injectStyles();
+    document.addEventListener("keydown", handleKeyDown2, true);
+  }
+
   // Tmall-FastGoodsInput/index.ts
   var featureRegistry = {
     cateLabelLarge: {
@@ -42,6 +182,18 @@
       // 默认开启
       init: initCateLabelLarge,
       description: "类目文本标签点击自动勾选增强"
+    },
+    tabToOverlayInput: {
+      enabled: true,
+      // 默认开启
+      init: initTabToOverlayInput,
+      description: "Tab 键快速聚焦浮层输入框"
+    },
+    keyboardNavigation: {
+      enabled: true,
+      // 默认开启
+      init: initKeyboardNavigation,
+      description: "搜索下拉框键盘上下键选择与回车确认"
     }
     // 后续可以在此处注册新的特性模块
     /*

@@ -1,4 +1,6 @@
 import { initCateLabelLarge } from "./cateLabelLarge";
+import { initTabToOverlayInput } from "./tabToOverlayInput";
+import { initKeyboardNavigation } from "./keyboardNavigation";
 import type { FeatureConfig } from "./types";
 
 // #region 配置与特性注册
@@ -10,6 +12,16 @@ const featureRegistry: Record<string, FeatureConfig> = {
     enabled: true, // 默认开启
     init: initCateLabelLarge,
     description: "类目文本标签点击自动勾选增强",
+  },
+  tabToOverlayInput: {
+    enabled: true, // 默认开启
+    init: initTabToOverlayInput,
+    description: "Tab 键快速聚焦浮层输入框",
+  },
+  keyboardNavigation: {
+    enabled: true, // 默认开启
+    init: initKeyboardNavigation,
+    description: "搜索下拉框键盘上下键选择与回车确认",
   },
   // 后续可以在此处注册新的特性模块
   /*

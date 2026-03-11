@@ -1,6 +1,7 @@
 import { initCateLabelLarge } from "./cateLabelLarge";
 import { initTabToOverlayInput } from "./tabToOverlayInput";
 import { initKeyboardNavigation } from "./keyboardNavigation";
+import { initGenProductCode } from "./genProductCode";
 import type { FeatureConfig } from "./types";
 
 // #region 配置与特性注册
@@ -23,14 +24,14 @@ const featureRegistry: Record<string, FeatureConfig> = {
     init: initKeyboardNavigation,
     description: "搜索下拉框键盘上下键选择与回车确认",
   },
-  // 后续可以在此处注册新的特性模块
-  /*
-  anotherFeature: {
-    enabled: false,
-    init: initAnotherFeature,
-    description: '示例扩展特性',
-  }
-  */
+  genProductCode: {
+    enabled: true, // 默认开启
+    init: initGenProductCode,
+    description: "Alt + 1 快速生成唯一货号",
+    options: {
+      prefix: "JGJ", // 这里可以配置前缀
+    },
+  },
 };
 // #endregion
 
@@ -44,7 +45,7 @@ function bootstrap() {
   Object.entries(featureRegistry).forEach(([key, config]) => {
     if (config.enabled) {
       try {
-        config.init();
+        config.init(config.options);
         console.log(`[Tmall-FastGoodsInput] 特性 [${key}] (${config.description}) 已成功启动`);
       } catch (error) {
         console.error(`[Tmall-FastGoodsInput] 特性 [${key}] 启动失败:`, error);

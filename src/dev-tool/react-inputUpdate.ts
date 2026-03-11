@@ -21,37 +21,37 @@ export function updateReactInput(element: HTMLInputElement | HTMLTextAreaElement
   const actualOldValue = oldValue !== undefined ? oldValue : element.value;
   const actualNewValue = newValue !== undefined ? newValue : actualOldValue;
 
-  // 1. 处理 React 16+ 的 _valueTracker 机制
-  // 必须在修改 element.value 之前或之后以特定顺序触发
-  const valueTracker = (element as any)._valueTracker;
-  if (valueTracker) {
-    // 方案：先将 tracker 设置为旧值，然后修改元素值，再触发 input 事件
-    // 这会让 React 检测到值发生了从 actualOldValue 到 actualNewValue 的变化
-    valueTracker.setValue(actualOldValue);
-  }
-
-  // 2. 如果新旧值相同，React 可能不会触发更新。
-  // 通过设置一个微小的差异（零宽度空格）来强制触发
-  if (actualOldValue === actualNewValue) {
-    element.value = actualNewValue + "\u200B";
-    element.dispatchEvent(new Event("input", { bubbles: true }));
-  }
-
-  // 3. 设置最终的目标值
-  element.value = actualNewValue;
-
-  // 4. 触发 composition 事件（模拟中文输入法）
-  const dispatchComposition = (type: string, data: string) => {
-    try {
-      element.dispatchEvent(new CompositionEvent(type, { bubbles: true, data }));
-    } catch (e) {
-      /* 忽略不支持的环境 */
+  // 1. 获取原生 setter 以绕过 React 的拦截
+  // React 16+ 会重写 input.value 的 setter。我们需要调用原生的 setter
+  // 从而让 React 的内部 _valueTracker 能够检测到值的变化。
+  const setNativeValue = (el: HTMLElement, val: string) => {
+    const prototype = Object.getPrototypeOf(el);
+    const valueSetter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+    if (valueSetter) {
+      valueSetter.call(el, val);
+    } else {
+      (el as any).value = val;
     }
   };
 
-  dispatchComposition("compositionstart", actualOldValue);
+  // 2. 处理 React 16+ 的 _valueTracker 机制
+  const valueTracker = (element as any)._valueTracker;
+  if (valueTracker) {
+    // 先同步 tracker 的状态到当前值，以确保 React 能检测到接下来的变化
+    valueTracker.setValue(actualOldValue);
+  }
 
-  // 5. 触发核心 input 事件
+  // 3. 如果新旧值完全相同，React 可能不会触发更新。
+  // 通过设置一个微小的差异（零宽度空格）来强制触发
+  if (actualOldValue === actualNewValue) {
+    setNativeValue(element, actualNewValue + "\u200B");
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  // 4. 设置最终的目标值（使用原生 setter）
+  setNativeValue(element, actualNewValue);
+
+  // 5. 触发核心 input 事件，让 React 捕获到变化并更新内部状态
   let inputEvent: Event;
   try {
     inputEvent = new InputEvent("input", {
@@ -64,8 +64,6 @@ export function updateReactInput(element: HTMLInputElement | HTMLTextAreaElement
     inputEvent = new Event("input", { bubbles: true, cancelable: true });
   }
   element.dispatchEvent(inputEvent);
-
-  dispatchComposition("compositionend", actualNewValue);
 
   // 6. 触发后续通知事件
   element.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));

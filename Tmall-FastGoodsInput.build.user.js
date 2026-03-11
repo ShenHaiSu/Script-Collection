@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫商品详情交互增强插件 (FastGoodsInput)
-// @version      2026.03.11.21.14.29
+// @version      2026.03.11.21.55.38
 // @description  在商品详情填写页面，提供多种更符合心流的交互方式，提升填写效率，降低错误率。
 // @author       DaoLuoLTS
 // @match        https://sell.publish.tmall.com/tmall/publish.htm?*
@@ -175,6 +175,81 @@
     document.addEventListener("keydown", handleKeyDown2, true);
   }
 
+  // dev-tool/react-inputUpdate.ts
+  function updateReactInput(element, oldValue, newValue) {
+    if (!element) {
+      console.error("updateReactInput: element 不能为空");
+      return;
+    }
+    const actualOldValue = oldValue !== void 0 ? oldValue : element.value;
+    const actualNewValue = newValue !== void 0 ? newValue : actualOldValue;
+    const setNativeValue = (el, val) => {
+      const prototype = Object.getPrototypeOf(el);
+      const valueSetter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+      if (valueSetter) {
+        valueSetter.call(el, val);
+      } else {
+        el.value = val;
+      }
+    };
+    const valueTracker = element._valueTracker;
+    if (valueTracker) {
+      valueTracker.setValue(actualOldValue);
+    }
+    if (actualOldValue === actualNewValue) {
+      setNativeValue(element, actualNewValue + "​");
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    setNativeValue(element, actualNewValue);
+    let inputEvent;
+    try {
+      inputEvent = new InputEvent("input", {
+        bubbles: true,
+        cancelable: true,
+        inputType: "insertText",
+        data: actualNewValue
+      });
+    } catch (e) {
+      inputEvent = new Event("input", { bubbles: true, cancelable: true });
+    }
+    element.dispatchEvent(inputEvent);
+    element.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+    element.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+    element.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
+    console.log(`updateReactInput: 已触发更新 [${actualOldValue}] -> [${actualNewValue}]`);
+  }
+
+  // Tmall-FastGoodsInput/genProductCode.ts
+  var currentOptions = { prefix: "JGJ" };
+  var isInitialized = false;
+  function generateProductCode() {
+    const now = /* @__PURE__ */ new Date();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    return `${currentOptions.prefix}${month}${day}${hours}${minutes}`;
+  }
+  function handleKeyDown3(event) {
+    if (!event.altKey || event.key !== "1") return;
+    const activeElement = document.activeElement;
+    if (!(activeElement instanceof HTMLInputElement) || activeElement.id !== "productCode") return;
+    event.preventDefault();
+    event.stopPropagation();
+    const newCode = generateProductCode();
+    console.log(`[Tmall-FastGoodsInput] 生成货号: ${newCode}`);
+    updateReactInput(activeElement, void 0, newCode);
+  }
+  function initGenProductCode(options) {
+    if (isInitialized) return;
+    isInitialized = true;
+    if (options?.prefix) {
+      currentOptions.prefix = options.prefix;
+    }
+    console.log(`[Tmall-FastGoodsInput] 货号快速生成特性已加载 (前缀: ${currentOptions.prefix})`);
+    document.addEventListener("keydown", handleKeyDown3, true);
+  }
+
   // Tmall-FastGoodsInput/index.ts
   var featureRegistry = {
     cateLabelLarge: {
@@ -194,22 +269,24 @@
       // 默认开启
       init: initKeyboardNavigation,
       description: "搜索下拉框键盘上下键选择与回车确认"
+    },
+    genProductCode: {
+      enabled: true,
+      // 默认开启
+      init: initGenProductCode,
+      description: "Alt + 1 快速生成唯一货号",
+      options: {
+        prefix: "JGJ"
+        // 这里可以配置前缀
+      }
     }
-    // 后续可以在此处注册新的特性模块
-    /*
-    anotherFeature: {
-      enabled: false,
-      init: initAnotherFeature,
-      description: '示例扩展特性',
-    }
-    */
   };
   function bootstrap() {
     console.log("[Tmall-FastGoodsInput] 脚本初始化中...");
     Object.entries(featureRegistry).forEach(([key, config]) => {
       if (config.enabled) {
         try {
-          config.init();
+          config.init(config.options);
           console.log(`[Tmall-FastGoodsInput] 特性 [${key}] (${config.description}) 已成功启动`);
         } catch (error) {
           console.error(`[Tmall-FastGoodsInput] 特性 [${key}] 启动失败:`, error);

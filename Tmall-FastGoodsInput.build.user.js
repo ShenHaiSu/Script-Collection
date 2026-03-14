@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫商品详情交互增强插件 (FastGoodsInput)
-// @version      2026.03.11.21.55.38
+// @version      2026.03.14.15.55.16
 // @description  在商品详情填写页面，提供多种更符合心流的交互方式，提升填写效率，降低错误率。
 // @author       DaoLuoLTS
 // @match        https://sell.publish.tmall.com/tmall/publish.htm?*

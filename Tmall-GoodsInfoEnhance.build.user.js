@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         淘宝/天猫商品信息增强插件 (GoodsInfoEnhance)
-// @version      2026.03.11.21.14.29
+// @version      2026.03.14.17.08.38
 // @description  淘宝/天猫商品详情页信息获取增强：复制商品ID、复制所有颜色名称、复制所有尺码名称等。
 // @author       DaoLuoLTS
 // @match        https://item.taobao.com/item.htm*
@@ -42,7 +42,18 @@
     FLOATING_TRIGGER_CLASS: "goods-info-floating-trigger"
   };
   var store = {
-    isUIInitialized: false
+    isUIInitialized: false,
+    // 标记是否已初始化选中项（默认全选）
+    isSelectionInitialized: false,
+    // 记录选中的颜色和尺码
+    selectedColors: [],
+    selectedSizes: [],
+    // 是否处于编辑模式
+    isEditingColors: false,
+    isEditingSizes: false,
+    // 用户自定义的属性列表 (若已编辑)
+    customColors: null,
+    customSizes: null
     // 可以根据需要扩展更多状态
   };
   function copyToClipboard(text) {
@@ -125,7 +136,7 @@
     copySkuByLabel("尺码");
   }
 
-  // Tmall-GoodsInfoEnhance/uiEnhance.ts
+  // Tmall-GoodsInfoEnhance/ui/styles.ts
   var STYLES = {
     OVERLAY: `
     position: fixed;
@@ -217,6 +228,11 @@
     transition: all 0.2s;
     user-select: none;
   `,
+    ITEM_CHIP_ACTIVE: `
+    background: #fff7f2;
+    border-color: #ff5000;
+    color: #ff5000;
+  `,
     COPY_BTN: `
     background: #ff5000;
     color: white;
@@ -226,6 +242,111 @@
     cursor: pointer;
     font-size: 13px;
     transition: background 0.2s;
+  `,
+    UNSELECT_BTN: `
+    background: #999;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.2s;
+    margin-right: 8px;
+  `,
+    EDIT_BTN: `
+    background: #4b5563;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.2s;
+    margin-right: 8px;
+  `,
+    EDIT_TEXTAREA: `
+    width: 100%;
+    min-height: 100px;
+    padding: 8px;
+    border: 1px solid #ff5000;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+    font-family: inherit;
+    box-sizing: border-box;
+    margin-top: 8px;
+    resize: vertical;
+    white-space: pre;
+  `,
+    DISABLED_BTN: `
+    background: #ccc !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
+  `,
+    INPUT_GROUP: `
+    margin-bottom: 24px;
+    padding: 16px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #eee;
+  `,
+    INPUT_LABEL: `
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #444;
+  `,
+    INPUT_CONTROL: `
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+    outline: none;
+  `,
+    ACTION_ROW: `
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    margin-bottom: 12px;
+  `,
+    GENERATE_BTN: `
+    flex: 1;
+    background: #ff5000;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: bold;
+    transition: background 0.2s;
+  `,
+    CLEAR_BTN: `
+    width: 80px;
+    background: #666;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: background 0.2s;
+  `,
+    RESULT_TEXTAREA: `
+    width: 100%;
+    height: 150px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: monospace;
+    resize: vertical;
+    box-sizing: border-box;
+    white-space: pre;
+    overflow-x: auto;
   `,
     FLOATING_BTN: `
     position: fixed;
@@ -246,6 +367,209 @@
     transition: transform 0.2s, background 0.2s;
   `
   };
+
+  // Tmall-GoodsInfoEnhance/ui/dataGenerator.ts
+  function generateSkuTableData(price) {
+    const productId = parseProductId() || "未知ID";
+    let result = "颜色	尺码	价格（元）	数量	商家编码	\n";
+    store.selectedColors.forEach((color) => {
+      store.selectedSizes.forEach((size) => {
+        result += `${color}	${size}	${price}	200	${productId}	
+`;
+      });
+    });
+    return result;
+  }
+
+  // Tmall-GoodsInfoEnhance/ui/content.ts
+  function refreshOverlayContent(container) {
+    container.innerHTML = "";
+    const { currentColors, currentSizes } = syncSkuData();
+    renderInfoSections(container, currentColors, currentSizes);
+    renderGenerateSection(container);
+  }
+  function syncSkuData() {
+    const currentColors = store.customColors || getSkuItems("颜色");
+    const currentSizes = store.customSizes || getSkuItems("尺码");
+    if (!store.isSelectionInitialized) {
+      if (currentColors.length > 0) store.selectedColors = [...currentColors];
+      if (currentSizes.length > 0) store.selectedSizes = [...currentSizes];
+      if (currentColors.length > 0 || currentSizes.length > 0) {
+        store.isSelectionInitialized = true;
+      }
+    } else {
+      store.selectedColors = store.selectedColors.filter((c) => currentColors.includes(c));
+      store.selectedSizes = store.selectedSizes.filter((s) => currentSizes.includes(s));
+    }
+    return { currentColors, currentSizes };
+  }
+  function renderInfoSections(container, currentColors, currentSizes) {
+    const dataItems = [
+      { label: "商品 ID", getData: () => parseProductId() || "未找到", key: "id" },
+      { label: "颜色分类", getData: () => currentColors, key: "colors" },
+      { label: "尺码/规格", getData: () => currentSizes, key: "sizes" }
+    ];
+    dataItems.forEach((item) => {
+      const section = createSectionElement(item, container);
+      container.appendChild(section);
+    });
+  }
+  function createSectionElement(item, container) {
+    const section = document.createElement("div");
+    section.style.cssText = STYLES.SECTION;
+    const titleRow = document.createElement("div");
+    titleRow.style.cssText = STYLES.SECTION_TITLE;
+    const labelSpan = document.createElement("span");
+    labelSpan.innerText = item.label;
+    titleRow.appendChild(labelSpan);
+    const rawData = item.getData();
+    const isArray = Array.isArray(rawData);
+    const isEditing = item.key === "colors" && store.isEditingColors || item.key === "sizes" && store.isEditingSizes;
+    const btnGroup = createSectionButtonGroup(item, isArray, isEditing, rawData, container, section);
+    titleRow.appendChild(btnGroup);
+    section.appendChild(titleRow);
+    renderSectionBody(section, item, isArray, isEditing, rawData, container);
+    return section;
+  }
+  function createSectionButtonGroup(item, isArray, isEditing, rawData, container, section) {
+    const btnGroup = document.createElement("div");
+    if (isArray) {
+      const editBtn = document.createElement("button");
+      editBtn.innerText = isEditing ? "保存" : "编辑";
+      editBtn.style.cssText = STYLES.EDIT_BTN;
+      editBtn.onclick = () => handleEditToggle(item, isEditing, container, section);
+      btnGroup.appendChild(editBtn);
+      const unselectBtn = document.createElement("button");
+      unselectBtn.innerText = "全不选";
+      unselectBtn.style.cssText = STYLES.UNSELECT_BTN + (isEditing ? STYLES.DISABLED_BTN : "");
+      unselectBtn.disabled = isEditing;
+      unselectBtn.onclick = () => {
+        if (item.key === "colors") store.selectedColors = [];
+        if (item.key === "sizes") store.selectedSizes = [];
+        refreshOverlayContent(container);
+      };
+      btnGroup.appendChild(unselectBtn);
+    }
+    const copyBtn = document.createElement("button");
+    copyBtn.innerText = isArray ? "全部复制" : "复制";
+    copyBtn.style.cssText = STYLES.COPY_BTN + (isEditing ? STYLES.DISABLED_BTN : "");
+    copyBtn.disabled = isEditing;
+    copyBtn.onclick = () => {
+      const text = isArray ? rawData.join("\n") : rawData;
+      copyToClipboard(text);
+    };
+    btnGroup.appendChild(copyBtn);
+    return btnGroup;
+  }
+  function handleEditToggle(item, isEditing, container, section) {
+    if (isEditing) {
+      const textarea = section.querySelector("textarea");
+      if (textarea) {
+        const newItems = textarea.value.split("\n").map((s) => s.trim()).filter((s) => s.length > 0);
+        if (item.key === "colors") {
+          store.customColors = newItems;
+          store.selectedColors = [...newItems];
+          store.isEditingColors = false;
+        } else {
+          store.customSizes = newItems;
+          store.selectedSizes = [...newItems];
+          store.isEditingSizes = false;
+        }
+      }
+    } else {
+      if (item.key === "colors") {
+        store.selectedColors = [];
+        store.isEditingColors = true;
+      } else {
+        store.selectedSizes = [];
+        store.isEditingSizes = true;
+      }
+    }
+    refreshOverlayContent(container);
+  }
+  function renderSectionBody(section, item, isArray, isEditing, rawData, container) {
+    if (isArray) {
+      if (isEditing) {
+        const textarea = document.createElement("textarea");
+        textarea.style.cssText = STYLES.EDIT_TEXTAREA;
+        textarea.value = rawData.join("\n");
+        textarea.placeholder = "每行输入一个选项...";
+        section.appendChild(textarea);
+      } else if (rawData.length > 0) {
+        const chipContainer = document.createElement("div");
+        chipContainer.style.cssText = STYLES.ITEM_CHIP_CONTAINER;
+        rawData.forEach((text) => {
+          const chip = createChip(text, item.key, container);
+          chipContainer.appendChild(chip);
+        });
+        section.appendChild(chipContainer);
+      } else {
+        section.appendChild(createInfoBox("未找到"));
+      }
+    } else {
+      section.appendChild(createInfoBox(rawData || "未找到"));
+    }
+  }
+  function createChip(text, key, container) {
+    const chip = document.createElement("div");
+    chip.innerText = text;
+    const isSelected = key === "colors" ? store.selectedColors.includes(text) : store.selectedSizes.includes(text);
+    chip.style.cssText = STYLES.ITEM_CHIP + (isSelected ? STYLES.ITEM_CHIP_ACTIVE : "");
+    chip.title = isSelected ? "点击取消选中" : "点击选中";
+    chip.onclick = () => {
+      if (key === "colors") {
+        store.selectedColors = isSelected ? store.selectedColors.filter((c) => c !== text) : [...store.selectedColors, text];
+      } else {
+        store.selectedSizes = isSelected ? store.selectedSizes.filter((s) => s !== text) : [...store.selectedSizes, text];
+      }
+      refreshOverlayContent(container);
+    };
+    return chip;
+  }
+  function createInfoBox(text) {
+    const infoBox = document.createElement("div");
+    infoBox.style.cssText = STYLES.INFO_CONTENT;
+    infoBox.innerText = text;
+    return infoBox;
+  }
+  function renderGenerateSection(container) {
+    const section = document.createElement("div");
+    section.style.cssText = STYLES.INPUT_GROUP;
+    const label = document.createElement("div");
+    label.innerText = "💰 售价设置";
+    label.style.cssText = STYLES.INPUT_LABEL;
+    section.appendChild(label);
+    const priceInput = document.createElement("input");
+    priceInput.type = "number";
+    priceInput.placeholder = "输入售价 (元), 默认 0";
+    priceInput.style.cssText = STYLES.INPUT_CONTROL;
+    section.appendChild(priceInput);
+    const actionRow = document.createElement("div");
+    actionRow.style.cssText = STYLES.ACTION_ROW;
+    const clearBtn = document.createElement("button");
+    clearBtn.innerText = "清空";
+    clearBtn.style.cssText = STYLES.CLEAR_BTN;
+    const generateBtn = document.createElement("button");
+    generateBtn.innerText = "✨ 批量生成表格数据";
+    generateBtn.style.cssText = STYLES.GENERATE_BTN;
+    actionRow.appendChild(clearBtn);
+    actionRow.appendChild(generateBtn);
+    section.appendChild(actionRow);
+    const resultTextarea = document.createElement("textarea");
+    resultTextarea.style.cssText = STYLES.RESULT_TEXTAREA;
+    resultTextarea.placeholder = "点击“批量生成”查看结果...";
+    section.appendChild(resultTextarea);
+    clearBtn.onclick = () => resultTextarea.value = "";
+    generateBtn.onclick = () => {
+      const result = generateSkuTableData(priceInput.value || "0");
+      resultTextarea.value = result;
+      resultTextarea.select();
+      console.log("[Tmall-GoodsInfoEnhance] 批量数据已生成");
+    };
+    container.appendChild(section);
+  }
+
+  // Tmall-GoodsInfoEnhance/ui/overlay.ts
   function createOverlay() {
     const overlay = document.createElement("div");
     overlay.className = SELECTORS.OVERLAY_CONTAINER_CLASS;
@@ -255,7 +579,6 @@
     const closeBtn = document.createElement("button");
     closeBtn.innerHTML = "&times;";
     closeBtn.style.cssText = STYLES.CLOSE_BTN;
-    closeBtn.onclick = () => overlay.style.display = "none";
     card.appendChild(closeBtn);
     const titleRow = document.createElement("div");
     titleRow.style.cssText = STYLES.TITLE + "display: flex; justify-content: space-between; align-items: center; padding-right: 40px;";
@@ -268,8 +591,8 @@
     copyAllBtn.onclick = () => {
       const dataItems = [
         { label: "商品 ID", data: parseProductId() || "未找到" },
-        { label: "颜色分类", data: getSkuItems("颜色").join("\n") || "未找到" },
-        { label: "尺码/规格", data: getSkuItems("尺码").join("\n") || "未找到" }
+        { label: "颜色分类", data: (store.customColors || getSkuItems("颜色")).join("\n") || "未找到" },
+        { label: "尺码/规格", data: (store.customSizes || getSkuItems("尺码")).join("\n") || "未找到" }
       ];
       const allText = dataItems.map((item) => `【${item.label}】
 ${item.data}`).join("\n\n");
@@ -281,66 +604,21 @@ ${item.data}`).join("\n\n");
     card.appendChild(contentContainer);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
-    overlay.onclick = (e) => {
-      if (e.target === overlay) overlay.style.display = "none";
-    };
-    return overlay;
+    return { overlay, contentContainer };
   }
-  function refreshOverlayContent(container) {
-    container.innerHTML = "";
-    const dataItems = [
-      { label: "商品 ID", getData: () => parseProductId() || "未找到" },
-      { label: "颜色分类", getData: () => getSkuItems("颜色") },
-      { label: "尺码/规格", getData: () => getSkuItems("尺码") }
-    ];
-    dataItems.forEach((item) => {
-      const section = document.createElement("div");
-      section.style.cssText = STYLES.SECTION;
-      const titleRow = document.createElement("div");
-      titleRow.style.cssText = STYLES.SECTION_TITLE;
-      const labelSpan = document.createElement("span");
-      labelSpan.innerText = item.label;
-      titleRow.appendChild(labelSpan);
-      const rawData = item.getData();
-      const isArray = Array.isArray(rawData);
-      const bulkText = isArray ? rawData.join("\n") : rawData;
-      const copyBtn = document.createElement("button");
-      copyBtn.innerText = isArray ? "全部复制" : "复制";
-      copyBtn.style.cssText = STYLES.COPY_BTN;
-      copyBtn.onmouseenter = () => copyBtn.style.background = "#e64500";
-      copyBtn.onmouseleave = () => copyBtn.style.background = "#ff5000";
-      copyBtn.onclick = () => copyToClipboard(bulkText);
-      titleRow.appendChild(copyBtn);
-      section.appendChild(titleRow);
-      if (isArray && rawData.length > 0) {
-        const chipContainer = document.createElement("div");
-        chipContainer.style.cssText = STYLES.ITEM_CHIP_CONTAINER;
-        rawData.forEach((text) => {
-          const chip = document.createElement("div");
-          chip.innerText = text;
-          chip.style.cssText = STYLES.ITEM_CHIP;
-          chip.title = "点击复制该项";
-          chip.onmouseenter = () => {
-            chip.style.borderColor = "#ff5000";
-            chip.style.color = "#ff5000";
-          };
-          chip.onmouseleave = () => {
-            chip.style.borderColor = "#ddd";
-            chip.style.color = "#333";
-          };
-          chip.onclick = () => copyToClipboard(text);
-          chipContainer.appendChild(chip);
-        });
-        section.appendChild(chipContainer);
-      } else {
-        const infoBox = document.createElement("div");
-        infoBox.style.cssText = STYLES.INFO_CONTENT;
-        infoBox.innerText = bulkText || "未找到";
-        section.appendChild(infoBox);
-      }
-      container.appendChild(section);
-    });
+  function toggleOverlay(overlay, contentContainer, show) {
+    const isShowing = show !== void 0 ? show : overlay.style.display !== "flex";
+    if (isShowing) {
+      refreshOverlayContent(contentContainer);
+      overlay.style.display = "flex";
+      document.body.style.overflow = "hidden";
+    } else {
+      overlay.style.display = "none";
+      document.body.style.overflow = "";
+    }
   }
+
+  // Tmall-GoodsInfoEnhance/ui/floatingButton.ts
   function createFloatingTrigger(onToggle) {
     const btn = document.createElement("div");
     btn.className = SELECTORS.FLOATING_TRIGGER_CLASS;
@@ -351,25 +629,26 @@ ${item.data}`).join("\n\n");
     btn.onmouseleave = () => btn.style.transform = "scale(1)";
     btn.onclick = onToggle;
     document.body.appendChild(btn);
+    return btn;
   }
+
+  // Tmall-GoodsInfoEnhance/uiEnhance.ts
   function initUIEnhance() {
     if (store.isUIInitialized) return;
     console.log("[Tmall-GoodsInfoEnhance] 页面 UI 增强 (Overlay) 初始化...");
-    const overlay = createOverlay();
-    const contentContainer = overlay.querySelector("div > div:last-child");
-    const toggleOverlay = () => {
-      if (overlay.style.display === "flex") {
-        overlay.style.display = "none";
-      } else {
-        refreshOverlayContent(contentContainer);
-        overlay.style.display = "flex";
-      }
+    const { overlay, contentContainer } = createOverlay();
+    createFloatingTrigger(() => toggleOverlay(overlay, contentContainer));
+    const closeBtn = overlay.querySelector("button");
+    if (closeBtn) {
+      closeBtn.onclick = () => toggleOverlay(overlay, contentContainer, false);
+    }
+    overlay.onclick = (e) => {
+      if (e.target === overlay) toggleOverlay(overlay, contentContainer, false);
     };
-    createFloatingTrigger(toggleOverlay);
     document.addEventListener("keydown", (e) => {
       if (e.altKey && e.code === "KeyQ") {
         e.preventDefault();
-        toggleOverlay();
+        toggleOverlay(overlay, contentContainer);
       }
     });
     store.isUIInitialized = true;

@@ -37,6 +37,17 @@ export const SELECTORS = {
  */
 export const store = {
   isUIInitialized: false,
+  // 标记是否已初始化选中项（默认全选）
+  isSelectionInitialized: false,
+  // 记录选中的颜色和尺码
+  selectedColors: [] as string[],
+  selectedSizes: [] as string[],
+  // 是否处于编辑模式
+  isEditingColors: false,
+  isEditingSizes: false,
+  // 用户自定义的属性列表 (若已编辑)
+  customColors: null as string[] | null,
+  customSizes: null as string[] | null,
   // 可以根据需要扩展更多状态
 };
 // #endregion

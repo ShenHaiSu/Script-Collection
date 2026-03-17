@@ -7,5 +7,9 @@ export interface ScrapedResult {
   imgUrl: string;
   /** 采集到的文本内容 */
   text: string;
+  /** 商品id */
+  itemId: string;
+  /** 商品名称 */
+  itemName: string;
 }
 // #endregion

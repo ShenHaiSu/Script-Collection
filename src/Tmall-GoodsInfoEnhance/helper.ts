@@ -33,6 +33,26 @@ export const SELECTORS = {
 };
 
 /**
+ * 尺码黑名单：完全匹配黑名单中的尺码将被跳过捕获
+ * 用户可在此处直接编辑修改需要过滤的尺码
+ */
+export const SIZE_BLACKLIST: string[] = [
+  // 示例: "XXL", "XXXL",
+  "百人购买",
+  "千人加购",
+  "80%加购",
+  "近期热销",
+];
+
+/**
+ * 颜色黑名单：完全匹配黑名单中的颜色将被跳过捕获
+ * 用户可在此处直接编辑修改需要过滤的颜色
+ */
+export const COLOR_BLACKLIST: string[] = [
+  // 示例: "定制色", "特殊色",
+];
+
+/**
  * 内部状态存储 (Store)
  */
 export const store = {
@@ -122,6 +142,9 @@ export function getSkuItems(labelText: string): string[] {
   const group = getSkuPropGroup(labelText);
   if (!group) return [];
 
+  // 获取对应的黑名单
+  const blacklist = getBlacklistForLabel(labelText);
+
   // #region 针对 detail.tmall.com 的新结构提取逻辑
   if (group.parentElement?.id === "skuOptionsArea") {
     const itemsContainer = group.children[1];
@@ -130,7 +153,9 @@ export function getSkuItems(labelText: string): string[] {
       // 我们寻找 itemsContainer 下所有带有文本内容的 span
       const allSpans = Array.from(itemsContainer.querySelectorAll("span"));
       const names = allSpans.map((span) => (span as HTMLElement).innerText.trim()).filter((text) => text.length > 0);
-      return Array.from(new Set(names));
+      const uniqueNames = Array.from(new Set(names));
+      // 应用黑名单过滤
+      return filterByBlacklist(uniqueNames, blacklist);
     }
   }
   // #endregion
@@ -140,8 +165,38 @@ export function getSkuItems(labelText: string): string[] {
     .map((el) => el.textContent?.trim())
     .filter((text): text is string => !!text && text.length > 0);
 
-  return Array.from(new Set(items));
+  const uniqueItems = Array.from(new Set(items));
+  // 应用黑名单过滤
+  return filterByBlacklist(uniqueItems, blacklist);
   // #endregion
+}
+
+/**
+ * 根据标签类型获取对应的黑名单
+ * @param labelText 属性标签名
+ * @returns 对应的黑名单数组
+ */
+function getBlacklistForLabel(labelText: string): string[] {
+  if (labelText.includes("尺码") || labelText.includes("尺寸") || labelText.includes("码")) {
+    return SIZE_BLACKLIST;
+  }
+  if (labelText.includes("颜色") || labelText.includes("色")) {
+    return COLOR_BLACKLIST;
+  }
+  return [];
+}
+
+/**
+ * 从列表中过滤掉黑名单中的项
+ * @param items 原始列表
+ * @param blacklist 黑名单数组
+ * @returns 过滤后的列表
+ */
+function filterByBlacklist(items: string[], blacklist: string[]): string[] {
+  if (blacklist.length === 0) {
+    return items;
+  }
+  return items.filter((item) => !blacklist.includes(item));
 }
 
 /**

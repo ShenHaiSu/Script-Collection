@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         淘宝/天猫商品信息增强插件 (GoodsInfoEnhance)
-// @version      2026.03.17.21.18.47
+// @version      2026.03.18.22.08.45
 // @description  淘宝/天猫商品详情页信息获取增强：复制商品ID、复制所有颜色名称、复制所有尺码名称等。
 // @author       DaoLuoLTS
 // @match        https://item.taobao.com/item.htm*
@@ -41,6 +41,16 @@
     // 浮动触发按钮类名
     FLOATING_TRIGGER_CLASS: "goods-info-floating-trigger"
   };
+  var SIZE_BLACKLIST = [
+    // 示例: "XXL", "XXXL",
+    "百人购买",
+    "千人加购",
+    "80%加购",
+    "近期热销"
+  ];
+  var COLOR_BLACKLIST = [
+    // 示例: "定制色", "特殊色",
+  ];
   var store = {
     isUIInitialized: false,
     // 标记是否已初始化选中项（默认全选）
@@ -96,16 +106,34 @@
   function getSkuItems(labelText) {
     const group = getSkuPropGroup(labelText);
     if (!group) return [];
+    const blacklist = getBlacklistForLabel(labelText);
     if (group.parentElement?.id === "skuOptionsArea") {
       const itemsContainer = group.children[1];
       if (itemsContainer) {
         const allSpans = Array.from(itemsContainer.querySelectorAll("span"));
         const names = allSpans.map((span) => span.innerText.trim()).filter((text) => text.length > 0);
-        return Array.from(new Set(names));
+        const uniqueNames = Array.from(new Set(names));
+        return filterByBlacklist(uniqueNames, blacklist);
       }
     }
     const items = Array.from(group.querySelectorAll(SELECTORS.SKU_ITEM_NAME)).map((el) => el.textContent?.trim()).filter((text) => !!text && text.length > 0);
-    return Array.from(new Set(items));
+    const uniqueItems = Array.from(new Set(items));
+    return filterByBlacklist(uniqueItems, blacklist);
+  }
+  function getBlacklistForLabel(labelText) {
+    if (labelText.includes("尺码") || labelText.includes("尺寸") || labelText.includes("码")) {
+      return SIZE_BLACKLIST;
+    }
+    if (labelText.includes("颜色") || labelText.includes("色")) {
+      return COLOR_BLACKLIST;
+    }
+    return [];
+  }
+  function filterByBlacklist(items, blacklist) {
+    if (blacklist.length === 0) {
+      return items;
+    }
+    return items.filter((item) => !blacklist.includes(item));
   }
   function copySkuByLabel(labelText) {
     const items = getSkuItems(labelText);
@@ -642,9 +670,6 @@ ${item.data}`).join("\n\n");
     if (closeBtn) {
       closeBtn.onclick = () => toggleOverlay(overlay, contentContainer, false);
     }
-    overlay.onclick = (e) => {
-      if (e.target === overlay) toggleOverlay(overlay, contentContainer, false);
-    };
     document.addEventListener("keydown", (e) => {
       if (e.altKey && e.code === "KeyQ") {
         e.preventDefault();

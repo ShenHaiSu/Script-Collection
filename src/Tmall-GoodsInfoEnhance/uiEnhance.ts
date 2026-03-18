@@ -29,9 +29,9 @@ export function initUIEnhance() {
     closeBtn.onclick = () => toggleOverlay(overlay, contentContainer, false);
   }
 
-  overlay.onclick = (e) => {
-    if (e.target === overlay) toggleOverlay(overlay, contentContainer, false);
-  };
+  // overlay.onclick = (e) => {
+  //   if (e.target === overlay) toggleOverlay(overlay, contentContainer, false);
+  // };
   // #endregion
 
   // #region 注册快捷键监听

@@ -3,6 +3,8 @@ import { copyProductIdAction } from "./copyProductId";
 import { copyAllColorNamesAction } from "./copyColorNames";
 import { copyAllSizeNamesAction } from "./copySizeNames";
 import { initUIEnhance } from "./uiEnhance";
+// 导入黑名单配置，方便用户在此文件中也将看到可配置的选项
+export { SIZE_BLACKLIST, COLOR_BLACKLIST } from "./helper";
 
 // #region 注册油猴菜单
 /**

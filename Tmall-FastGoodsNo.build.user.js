@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫商品发布页面货号填写后快速跳转 (FastGoodsNo)
-// @version      2026.03.09.21.15.00
+// @version      2026.03.20.21.26.39
 // @description  在商品发布页面的搜索发品界面，用户输入完毕货号之后直接按下回车键，会自动点击确认按钮，跳转到商品详情页面。
 // @author       DaoLuoLTS
 // @match        https://sell.publish.tmall.com/tmall/ai/category.htm*
@@ -22,22 +22,24 @@
     }
     const actualOldValue = oldValue !== void 0 ? oldValue : element.value;
     const actualNewValue = newValue !== void 0 ? newValue : actualOldValue;
+    const setNativeValue = (el, val) => {
+      const prototype = Object.getPrototypeOf(el);
+      const valueSetter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+      if (valueSetter) {
+        valueSetter.call(el, val);
+      } else {
+        el.value = val;
+      }
+    };
     const valueTracker = element._valueTracker;
     if (valueTracker) {
       valueTracker.setValue(actualOldValue);
     }
     if (actualOldValue === actualNewValue) {
-      element.value = actualNewValue + "​";
+      setNativeValue(element, actualNewValue + "​");
       element.dispatchEvent(new Event("input", { bubbles: true }));
     }
-    element.value = actualNewValue;
-    const dispatchComposition = (type, data) => {
-      try {
-        element.dispatchEvent(new CompositionEvent(type, { bubbles: true, data }));
-      } catch (e) {
-      }
-    };
-    dispatchComposition("compositionstart", actualOldValue);
+    setNativeValue(element, actualNewValue);
     let inputEvent;
     try {
       inputEvent = new InputEvent("input", {
@@ -50,7 +52,6 @@
       inputEvent = new Event("input", { bubbles: true, cancelable: true });
     }
     element.dispatchEvent(inputEvent);
-    dispatchComposition("compositionend", actualNewValue);
     element.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
     element.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
     element.dispatchEvent(new FocusEvent("focus", { bubbles: true }));

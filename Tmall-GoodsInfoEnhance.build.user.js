@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         淘宝/天猫商品信息增强插件 (GoodsInfoEnhance)
-// @version      2026.03.18.22.08.45
+// @version      2026.03.20.21.26.39
 // @description  淘宝/天猫商品详情页信息获取增强：复制商品ID、复制所有颜色名称、复制所有尺码名称等。
 // @author       DaoLuoLTS
 // @match        https://item.taobao.com/item.htm*

@@ -11,6 +11,9 @@
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.18.1",
+  "imports": {
+    "@/*": "./src/*"
+  },
   "devDependencies": {
     "@types/node": "^25.3.3",
     "@types/tampermonkey": "^5.0.5",

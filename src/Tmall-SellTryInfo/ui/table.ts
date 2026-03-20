@@ -1,4 +1,5 @@
-import { ScrapedResult } from "../type";
+import { ScrapedResult } from "@/Tmall-SellTryInfo/type";
+import { copyImageUrlToClipboard } from "@/dev-tool/imgCopy";
 
 /**
  * 创建表格样式
@@ -203,21 +204,6 @@ async function copyToClipboard(text: string): Promise<void> {
 }
 
 /**
- * 复制图片URL到剪贴板
- * @param imgUrl 图片URL
- */
-async function copyImageToClipboard(imgUrl: string): Promise<void> {
-  try {
-    // 尝试将图片URL复制到剪贴板
-    await navigator.clipboard.writeText(imgUrl);
-    showToast("图片链接已复制到剪贴板");
-  } catch (error) {
-    console.error("复制图片链接失败:", error);
-    showToast("复制失败，请手动复制");
-  }
-}
-
-/**
  * 创建表格容器
  * @param data 采集到的数据
  * @returns 表格容器元素
@@ -273,7 +259,20 @@ function createTableContainer(data: ScrapedResult[]): HTMLElement {
     if (target.tagName === "IMG") {
       const imgUrl = target.dataset.url;
       if (imgUrl) {
-        await copyImageToClipboard(imgUrl);
+        try {
+          await copyImageUrlToClipboard(imgUrl, {
+            canvasWidth: 800,
+            canvasHeight: 800,
+            onSuccess: () => showToast("图片已复制到剪贴板 (800x800)"),
+            onError: (error) => {
+              console.error("复制图片失败:", error);
+              showToast("复制图片失败，请重试");
+            },
+          });
+        } catch (error) {
+          console.error("复制图片失败:", error);
+          showToast("复制图片失败，请重试");
+        }
       }
       return;
     }

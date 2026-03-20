@@ -1,4 +1,4 @@
-import { updateReactInputAsync } from "../dev-tool/react-inputUpdate";
+import { updateReactInputAsync } from "@/dev-tool/react-inputUpdate";
 
 // #region 天猫快速货号输入增强功能
 /**

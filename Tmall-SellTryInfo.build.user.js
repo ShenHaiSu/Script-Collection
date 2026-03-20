@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫千牛店铺新品试销信息自动获取
-// @version      2026.03.18.22.05.00
+// @version      2026.03.20.21.26.39
 // @description  在新品试销的商品列表页面，自动获取整页的商品图片以及分享链接文本。
 // @author       DaoLuoLTS
 // @match        https://qn.taobao.com/home.htm/trade-try-buy/merchList*
@@ -29,6 +29,83 @@
       return this.results;
     }
   };
+
+  // dev-tool/imgCopy.ts
+  function getImageSource(options) {
+    if (options.imgElement) {
+      return options.imgElement.src;
+    }
+    if (options.imgUrl) {
+      return options.imgUrl;
+    }
+    return null;
+  }
+  function addTimestamp(url) {
+    const connector = url.includes("?") ? "&" : "?";
+    return `${url}${connector}timestamp=${Date.now()}`;
+  }
+  async function copyImageToClipboard(options) {
+    const { bypassCache = true, canvasWidth, canvasHeight, onSuccess, onError } = options;
+    const source = getImageSource(options);
+    if (!source) {
+      const error = new Error("必须提供 imgElement 或 imgUrl 参数");
+      onError?.(error);
+      throw error;
+    }
+    const canvas = document.createElement("canvas");
+    const tempImg = new Image();
+    tempImg.crossOrigin = "anonymous";
+    return new Promise((resolve, reject) => {
+      tempImg.onload = () => {
+        try {
+          const targetWidth = canvasWidth || tempImg.naturalWidth;
+          const targetHeight = canvasHeight || tempImg.naturalHeight;
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            throw new Error("无法获取 Canvas 2D 上下文");
+          }
+          ctx.drawImage(tempImg, 0, 0, targetWidth, targetHeight);
+          canvas.toBlob(async (blob) => {
+            if (!blob) {
+              const error = new Error("无法创建图片 Blob");
+              onError?.(error);
+              reject(error);
+              return;
+            }
+            try {
+              const data = [new ClipboardItem({ "image/png": blob })];
+              await navigator.clipboard.write(data);
+              console.log("%c [Canvas] 复制成功！", "color: #4caf50; font-weight: bold;");
+              onSuccess?.();
+              resolve();
+            } catch (err) {
+              const error = err instanceof Error ? err : new Error("写入剪贴板失败");
+              console.error("写入剪贴板失败:", error);
+              onError?.(error);
+              reject(error);
+            }
+          }, "image/png");
+        } catch (err) {
+          const error = err instanceof Error ? err : new Error("处理图片时发生错误");
+          console.error("处理图片时发生错误:", error);
+          onError?.(error);
+          reject(error);
+        }
+      };
+      tempImg.onerror = () => {
+        const error = new Error("图片加载失败，请检查 CORS 策略");
+        console.error(error.message);
+        onError?.(error);
+        reject(error);
+      };
+      tempImg.src = bypassCache ? addTimestamp(source) : source;
+    });
+  }
+  async function copyImageUrlToClipboard(imgUrl, options) {
+    return copyImageToClipboard({ ...options, imgUrl });
+  }
 
   // Tmall-SellTryInfo/ui/table.ts
   function createStyles() {
@@ -217,15 +294,6 @@
       showToast("复制失败，请手动复制");
     }
   }
-  async function copyImageToClipboard(imgUrl) {
-    try {
-      await navigator.clipboard.writeText(imgUrl);
-      showToast("图片链接已复制到剪贴板");
-    } catch (error) {
-      console.error("复制图片链接失败:", error);
-      showToast("复制失败，请手动复制");
-    }
-  }
   function createTableContainer(data) {
     const container = document.createElement("div");
     container.className = "sell-try-info-table-container";
@@ -261,7 +329,20 @@
       if (target.tagName === "IMG") {
         const imgUrl = target.dataset.url;
         if (imgUrl) {
-          await copyImageToClipboard(imgUrl);
+          try {
+            await copyImageUrlToClipboard(imgUrl, {
+              canvasWidth: 800,
+              canvasHeight: 800,
+              onSuccess: () => showToast("图片已复制到剪贴板 (800x800)"),
+              onError: (error) => {
+                console.error("复制图片失败:", error);
+                showToast("复制图片失败，请重试");
+              }
+            });
+          } catch (error) {
+            console.error("复制图片失败:", error);
+            showToast("复制图片失败，请重试");
+          }
         }
         return;
       }

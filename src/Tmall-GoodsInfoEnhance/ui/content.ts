@@ -1,9 +1,9 @@
 /**
  * 覆盖层内容渲染逻辑 (content.ts)
  */
-import { store, getSkuItems, parseProductId, copyToClipboard } from "../helper";
-import { STYLES } from "./styles";
-import { generateSkuTableData } from "./dataGenerator";
+import { store, getSkuItems, parseProductId, copyToClipboard } from "@/Tmall-GoodsInfoEnhance/helper";
+import { STYLES } from "@/Tmall-GoodsInfoEnhance/ui/styles";
+import { generateSkuTableData } from "@/Tmall-GoodsInfoEnhance/ui/dataGenerator";
 
 /**
  * 刷新覆盖层中的数据内容

@@ -2,6 +2,7 @@ import { initCateLabelLarge } from "./cateLabelLarge";
 import { initTabToOverlayInput } from "./tabToOverlayInput";
 import { initKeyboardNavigation } from "./keyboardNavigation";
 import { initGenProductCode } from "./genProductCode";
+import { initAutoFillColorSize } from "./autoFillColorSize";
 import type { FeatureConfig } from "./types";
 
 // #region 配置与特性注册
@@ -31,6 +32,11 @@ const featureRegistry: Record<string, FeatureConfig> = {
     options: {
       prefix: "JGJ", // 这里可以配置前缀
     },
+  },
+  autoFillColorSize: {
+    enabled: true, // 默认开启
+    init: initAutoFillColorSize,
+    description: "Alt + 1 自动填写商品颜色和尺码",
   },
 };
 // #endregion

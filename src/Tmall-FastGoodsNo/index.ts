@@ -1,6 +1,40 @@
 import { updateReactInputAsync } from "@/dev-tool/react-inputUpdate";
+import { registerAlt1Shortcut } from "./utils/shortcutHandler";
 
 // #region 天猫快速货号输入增强功能
+
+/**
+ * 天猫快速货号输入增强模块
+ *
+ * @remarks
+ * 本模块提供以下功能：
+ * 1. 回车键自动触发 React 状态更新并点击下一步按钮
+ * 2. Alt+1 快捷键快速填充当前时间（mmdd 格式）到货号输入框
+ *
+ * 使用方式：
+ * - 在货号输入框中按回车键：触发原有逻辑，自动跳转下一步
+ * - 按 Alt+1：填充当前时间（如 09:30 -> 0930）并自动跳转下一步
+ */
+
+// 模块初始化时注册 Alt+1 快捷键
+let unregisterAlt1Shortcut: (() => void) | null = null;
+
+/**
+ * 初始化模块功能
+ *
+ * @description
+ * 注册全局事件监听器，包括：
+ * 1. 回车键事件监听（原有功能）
+ * 2. Alt+1 快捷键监听（新功能）
+ */
+function initModule(): void {
+  // 注册 Alt+1 快捷键
+  unregisterAlt1Shortcut = registerAlt1Shortcut();
+  console.log("天猫快速货号输入增强模块已初始化");
+}
+
+// 自动初始化模块
+initModule();
 /**
  * 等待下一步按钮变为可用状态并点击
  */

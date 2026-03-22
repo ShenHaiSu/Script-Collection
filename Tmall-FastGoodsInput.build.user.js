@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫商品详情交互增强插件 (FastGoodsInput)
-// @version      2026.03.21.16.09.43
+// @version      2026.03.22.19.10.44
 // @description  在商品详情填写页面，提供多种更符合心流的交互方式，提升填写效率，降低错误率。
 // @author       DaoLuoLTS
 // @match        https://sell.publish.tmall.com/tmall/publish.htm?*
@@ -411,7 +411,8 @@
     };
     let currentSection = "none";
     for (const line of lines) {
-      if (line.includes("商品 ID") || /^\d+$/.test(line)) {
+      if (line.includes("商品 ID")) {
+        currentSection = "itemId";
         continue;
       }
       if (line.includes("颜色分类")) {
@@ -422,7 +423,9 @@
         currentSection = "sizes";
         continue;
       }
-      if (currentSection === "colors") {
+      if (currentSection === "itemId") {
+        continue;
+      } else if (currentSection === "colors") {
         result.colors.push(line);
       } else if (currentSection === "sizes") {
         result.sizes.push(line);

@@ -184,11 +184,12 @@ function parseInputText(text: string): ParsedInputData {
     sizes: [],
   };
 
-  let currentSection: "colors" | "sizes" | "none" = "none";
+  let currentSection: "itemId" | "colors" | "sizes" | "none" = "none";
 
   for (const line of lines) {
     // 跳过商品 ID 行
-    if (line.includes("商品 ID") || /^\d+$/.test(line)) {
+    if (line.includes("商品 ID")) {
+      currentSection = "itemId";
       continue;
     }
 
@@ -203,7 +204,9 @@ function parseInputText(text: string): ParsedInputData {
     }
 
     // 根据当前章节添加到对应数组
-    if (currentSection === "colors") {
+    if (currentSection === "itemId") {
+      continue;
+    } else if (currentSection === "colors") {
       result.colors.push(line);
     } else if (currentSection === "sizes") {
       result.sizes.push(line);
@@ -268,7 +271,7 @@ function wait(ms: number): Promise<void> {
 async function addColors(
   container: HTMLElement,
   colors: string[],
-  onProgress?: (current: number, total: number, currentItem: string) => void
+  onProgress?: (current: number, total: number, currentItem: string) => void,
 ): Promise<void> {
   console.log("[Tmall-FastGoodsInput] 开始添加颜色:", colors);
 
@@ -339,7 +342,7 @@ async function addColors(
 async function addSizes(
   container: HTMLElement,
   sizes: string[],
-  onProgress?: (current: number, total: number, currentItem: string) => void
+  onProgress?: (current: number, total: number, currentItem: string) => void,
 ): Promise<void> {
   console.log("[Tmall-FastGoodsInput] 开始添加尺码:", sizes);
 
@@ -492,7 +495,6 @@ function createOverlayUI(): void {
   card.appendChild(buttonRow);
   overlay.appendChild(card);
   document.body.appendChild(overlay);
-
 }
 
 /**
@@ -618,13 +620,13 @@ async function handleConfirm(): Promise<void> {
 
   // 4. 切换到进度展示界面
   showProgressUI();
-  
+
   // 计算总项目数
   const totalColors = colorContainer ? parsedData.colors.length : 0;
   const totalSizes = sizeContainer ? parsedData.sizes.length : 0;
   totalItems = totalColors + totalSizes;
   currentProgress = 0;
-  
+
   addProgressLog(`开始自动填写...`);
   addProgressLog(`颜色: ${totalColors}个, 尺码: ${totalSizes}个`);
 
@@ -633,7 +635,7 @@ async function handleConfirm(): Promise<void> {
     // 添加颜色
     if (colorContainer && parsedData.colors.length > 0) {
       addProgressLog(`开始填写颜色...`);
-      
+
       await addColors(colorContainer.element, parsedData.colors, (current, total, currentItem) => {
         // 更新进度
         currentProgress = ((current + (totalSizes > 0 ? 0 : 0)) / totalItems) * 100;
@@ -645,7 +647,7 @@ async function handleConfirm(): Promise<void> {
     // 添加尺码
     if (sizeContainer && parsedData.sizes.length > 0) {
       addProgressLog(`开始填写尺码...`);
-      
+
       await addSizes(sizeContainer.element, parsedData.sizes, (current, total, currentItem) => {
         // 更新进度
         const colorOffset = totalColors;
@@ -658,12 +660,12 @@ async function handleConfirm(): Promise<void> {
     // 完成
     updateProgressBar(100);
     addProgressLog(`✅ 全部填写完成!`, true);
-    
+
     console.log("[Tmall-FastGoodsInput] 批量填写完成", {
       colors: parsedData.colors,
       sizes: parsedData.sizes,
     });
-    
+
     // 延迟一下再关闭，让用户看到完成状态
     setTimeout(() => {
       hideOverlay();

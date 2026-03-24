@@ -1,5 +1,6 @@
 import {ScrapedResult} from "@/Tmall-SellTryInfo/type";
 import {copyImageUrlToClipboard} from "@/dev-tool/imgCopy";
+import {copyTableStructure} from "./tableCopy";
 
 /**
  * 创建表格样式
@@ -170,6 +171,36 @@ function createStyles(): void {
       from { opacity: 0; transform: translateX(-50%) translateY(10px); }
       to { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
+
+    .sell-try-info-table-footer {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      padding: 12px 20px;
+      border-top: 1px solid #eee;
+      background: #fafafa;
+      border-bottom-left-radius: 8px;
+      border-bottom-right-radius: 8px;
+    }
+
+    .sell-try-info-table-footer-btn {
+      background: #1890ff;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .sell-try-info-table-footer-btn:hover {
+      background: #40a9ff;
+    }
+
+    .sell-try-info-table-footer-btn:active {
+      background: #096dd9;
+    }
   `;
   document.head.appendChild(style);
 }
@@ -334,8 +365,28 @@ function createTableContainer(data: ScrapedResult[]): HTMLElement {
   table.appendChild(tbody);
   wrapper.appendChild(table);
 
+  // 创建底部栏
+  const footer = document.createElement("div");
+  footer.className = "sell-try-info-table-footer";
+  
+  const copyBtn = document.createElement("button");
+  copyBtn.className = "sell-try-info-table-footer-btn";
+  copyBtn.textContent = "表结构复制";
+  copyBtn.addEventListener("click", async () => {
+    try {
+      await copyTableStructure(data);
+      showToast("表结构已复制到剪贴板");
+    } catch (error) {
+      console.error("复制表结构失败:", error);
+      showToast("复制失败，请重试");
+    }
+  });
+  
+  footer.appendChild(copyBtn);
+
   container.appendChild(header);
   container.appendChild(wrapper);
+  container.appendChild(footer);
 
   return container;
 }

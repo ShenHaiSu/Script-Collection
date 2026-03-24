@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫商品详情交互增强插件 (FastGoodsInput)
-// @version      2026.03.22.19.10.44
+// @version      2026.03.24.21.38.54
 // @description  在商品详情填写页面，提供多种更符合心流的交互方式，提升填写效率，降低错误率。
 // @author       DaoLuoLTS
 // @match        https://sell.publish.tmall.com/tmall/publish.htm?*
@@ -483,7 +483,6 @@
         break;
       }
       const input = inputs[inputIndex];
-      const oldValue = input.value;
       console.log(`[Tmall-FastGoodsInput] 添加颜色 "${colors[i]}" 到索引 ${inputIndex}`);
       await updateReactInputAsync(input, colors[i], 100);
       await wait(200);
@@ -689,8 +688,7 @@
       if (sizeContainer && parsedData.sizes.length > 0) {
         addProgressLog(`开始填写尺码...`);
         await addSizes(sizeContainer.element, parsedData.sizes, (current, total, currentItem) => {
-          const colorOffset = totalColors;
-          currentProgress = (colorOffset + current) / totalItems * 100;
+          currentProgress = (totalColors + current) / totalItems * 100;
           updateProgressBar(currentProgress);
           addProgressLog(`✓ 完成 尺码填写: ${currentItem}`, true);
         });
@@ -729,6 +727,26 @@
     document.addEventListener("keydown", handleKeyDown4, true);
   }
 
+  // Tmall-FastGoodsInput/quickFillShipping.ts
+  var isInitialized3 = false;
+  function handleKeyDown5(event) {
+    if (!event.altKey || event.key !== "1") return;
+    const activeElement = document.activeElement;
+    if (!(activeElement instanceof HTMLInputElement)) return;
+    const subTitleElement = activeElement.closest("div#struct-tmSubTitle");
+    if (!subTitleElement) return;
+    event.preventDefault();
+    event.stopPropagation();
+    console.log("[Tmall-FastGoodsInput] 检测到在副标题区域，按下 Alt+1，填写快递信息");
+    updateReactInput(activeElement, void 0, "顺丰包邮 包运费险");
+  }
+  function initQuickFillShipping() {
+    if (isInitialized3) return;
+    isInitialized3 = true;
+    console.log("[Tmall-FastGoodsInput] 快递信息快速填写特性已加载");
+    document.addEventListener("keydown", handleKeyDown5, true);
+  }
+
   // Tmall-FastGoodsInput/index.ts
   var featureRegistry = {
     cateLabelLarge: {
@@ -764,6 +782,12 @@
       // 默认开启
       init: initAutoFillColorSize,
       description: "Alt + 1 自动填写商品颜色和尺码"
+    },
+    quickFillShipping: {
+      enabled: true,
+      // 默认开启
+      init: initQuickFillShipping,
+      description: "Alt + 1 快速填写快递信息（顺丰包邮 包运费险）"
     }
   };
   function bootstrap() {

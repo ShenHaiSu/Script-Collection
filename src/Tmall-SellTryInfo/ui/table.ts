@@ -1,5 +1,5 @@
-import { ScrapedResult } from "@/Tmall-SellTryInfo/type";
-import { copyImageUrlToClipboard } from "@/dev-tool/imgCopy";
+import {ScrapedResult} from "@/Tmall-SellTryInfo/type";
+import {copyImageUrlToClipboard} from "@/dev-tool/imgCopy";
 
 /**
  * 创建表格样式
@@ -354,13 +354,9 @@ export function showResultsTable(data: ScrapedResult[]): void {
 
   // 移除已存在的表格和遮罩层
   const existingContainer = document.querySelector(".sell-try-info-table-container");
-  if (existingContainer) {
-    existingContainer.remove();
-  }
+  if (existingContainer) existingContainer.remove();
   const existingOverlay = document.querySelector(".sell-try-info-overlay");
-  if (existingOverlay) {
-    existingOverlay.remove();
-  }
+  if (existingOverlay) existingOverlay.remove();
 
   // 创建半透明模糊遮罩层
   const overlay = document.createElement("div");

@@ -3,6 +3,7 @@ import { initTabToOverlayInput } from "./tabToOverlayInput";
 import { initKeyboardNavigation } from "./keyboardNavigation";
 import { initGenProductCode } from "./genProductCode";
 import { initAutoFillColorSize } from "./autoFillColorSize";
+import { initQuickFillShipping } from "./quickFillShipping";
 import type { FeatureConfig } from "./types";
 
 // #region 配置与特性注册
@@ -37,6 +38,11 @@ const featureRegistry: Record<string, FeatureConfig> = {
     enabled: true, // 默认开启
     init: initAutoFillColorSize,
     description: "Alt + 1 自动填写商品颜色和尺码",
+  },
+  quickFillShipping: {
+    enabled: true, // 默认开启
+    init: initQuickFillShipping,
+    description: "Alt + 1 快速填写快递信息（顺丰包邮 包运费险）",
   },
 };
 // #endregion

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫商品发布页面货号填写后快速跳转 (FastGoodsNo)
-// @version      2026.03.22.19.10.45
+// @version      2026.03.24.21.38.54
 // @description  在商品发布页面的搜索发品界面，用户输入完毕货号之后直接按下回车键，会自动点击确认按钮，跳转到商品详情页面。
 // @author       DaoLuoLTS
 // @match        https://sell.publish.tmall.com/tmall/ai/category.htm*
@@ -69,13 +69,13 @@
   }
 
   // Tmall-FastGoodsNo/utils/timeUtils.ts
-  function getCurrentTimeMmss() {
+  function getCurrentTimeMMddHHmm() {
     const now = /* @__PURE__ */ new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const formattedHours = hours.toString().padStart(2, "0");
-    const formattedMinutes = minutes.toString().padStart(2, "0");
-    return formattedHours + formattedMinutes;
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    return `${month}${day}${hours}${minutes}`;
   }
 
   // Tmall-FastGoodsNo/utils/inputDetector.ts
@@ -124,10 +124,12 @@
   }
 
   // Tmall-FastGoodsNo/utils/shortcutHandler.ts
+  var productCodePrefix = "JGJ";
   async function fillTimeAndProceed(input) {
-    const timeValue = getCurrentTimeMmss();
-    console.log(`[Alt+1快捷键] 获取当前时间: ${timeValue}`);
-    await updateReactInputAsync(input, timeValue);
+    const timeValue = getCurrentTimeMMddHHmm();
+    const fullCode = `${productCodePrefix}${timeValue}`;
+    console.log(`[Alt+1快捷键] 生成货号: ${fullCode}`);
+    await updateReactInputAsync(input, fullCode);
     const enterEvent = new KeyboardEvent("keydown", {
       key: "Enter",
       code: "Enter",
@@ -142,12 +144,8 @@
     }, 100);
   }
   function handleAlt1Shortcut(event) {
-    if (!event.altKey) {
-      return false;
-    }
-    if (event.key !== "1" && event.key !== "!") {
-      return false;
-    }
+    if (!event.altKey) return false;
+    if (event.key !== "1" && event.key !== "!") return false;
     console.log("[Alt+1快捷键] 检测到 Alt+1 快捷键");
     const activeElement = document.activeElement;
     if (!isGoodsNoInput(activeElement)) {
@@ -175,14 +173,21 @@
       console.log("[Alt+1快捷键] 已注销 Alt+1 快捷键监听器");
     };
   }
+  function setProductCodePrefix(prefix) {
+    productCodePrefix = prefix;
+    console.log(`[货号生成] 已设置前缀: ${productCodePrefix}`);
+  }
 
   // Tmall-FastGoodsNo/index.ts
   var unregisterAlt1Shortcut = null;
-  function initModule() {
+  function initModule(options) {
+    if (options?.prefix) {
+      setProductCodePrefix(options.prefix);
+    }
     unregisterAlt1Shortcut = registerAlt1Shortcut();
     console.log("天猫快速货号输入增强模块已初始化");
   }
-  initModule();
+  initModule({ prefix: "JGJ" });
   function waitForNextButtonAndClick() {
     setTimeout(() => {
       let checkCount = 0;

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫千牛店铺新品试销信息自动获取
-// @version      2026.03.24.21.26.39
+// @version      2026.03.24.22.07.07
 // @description  在新品试销的商品列表页面，自动获取整页的商品图片以及分享链接文本。
 // @author       DaoLuoLTS
 // @match        https://qn.taobao.com/home.htm/trade-try-buy/merchList*
@@ -105,6 +105,25 @@
   }
   async function copyImageUrlToClipboard(imgUrl, options) {
     return copyImageToClipboard({ ...options, imgUrl });
+  }
+
+  // Tmall-SellTryInfo/ui/tableCopy.ts
+  async function copyTableStructure(data) {
+    const rows = data.map((item) => {
+      return `  <tr>
+    <td><img src='${item.imgUrl}'></td>
+    <td><span>${item.text}</span></td>
+  </tr>`;
+    }).join("\n");
+    const tableHtml = `<table>
+${rows}
+</table>`;
+    try {
+      await navigator.clipboard.writeText(tableHtml);
+    } catch (error) {
+      console.error("复制失败:", error);
+      throw error;
+    }
   }
 
   // Tmall-SellTryInfo/ui/table.ts
@@ -273,6 +292,36 @@
       from { opacity: 0; transform: translateX(-50%) translateY(10px); }
       to { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
+
+    .sell-try-info-table-footer {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      padding: 12px 20px;
+      border-top: 1px solid #eee;
+      background: #fafafa;
+      border-bottom-left-radius: 8px;
+      border-bottom-right-radius: 8px;
+    }
+
+    .sell-try-info-table-footer-btn {
+      background: #1890ff;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .sell-try-info-table-footer-btn:hover {
+      background: #40a9ff;
+    }
+
+    .sell-try-info-table-footer-btn:active {
+      background: #096dd9;
+    }
   `;
     document.head.appendChild(style);
   }
@@ -388,8 +437,24 @@
     table.appendChild(thead);
     table.appendChild(tbody);
     wrapper.appendChild(table);
+    const footer = document.createElement("div");
+    footer.className = "sell-try-info-table-footer";
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "sell-try-info-table-footer-btn";
+    copyBtn.textContent = "表结构复制";
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await copyTableStructure(data);
+        showToast("表结构已复制到剪贴板");
+      } catch (error) {
+        console.error("复制表结构失败:", error);
+        showToast("复制失败，请重试");
+      }
+    });
+    footer.appendChild(copyBtn);
     container.appendChild(header);
     container.appendChild(wrapper);
+    container.appendChild(footer);
     return container;
   }
   function showResultsTable(data) {

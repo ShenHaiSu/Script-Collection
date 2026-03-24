@@ -4,8 +4,13 @@
  */
 
 import { updateReactInputAsync } from "@/dev-tool/react-inputUpdate";
-import { getCurrentTimeMmss } from "./timeUtils";
+import { getCurrentTimeMMddHHmm } from "./timeUtils";
 import { isGoodsNoInput, getInputDebugInfo } from "./inputDetector";
+
+// #region 货号生成配置
+/** 货号前缀 */
+let productCodePrefix: string = "JGJ";
+// #endregion
 
 /**
  * 等待下一步按钮变为可用状态并点击
@@ -52,23 +57,24 @@ function waitForNextButtonAndClick(): void {
 
 /**
  * 填充时间到货号输入框并触发自动跳转
- * 
+ *
  * @param input - 货号输入框元素
  * @returns {Promise<void>} 操作完成的 Promise
- * 
+ *
  * @remarks
  * 执行流程：
- * 1. 获取当前时间（mmdd 格式）
+ * 1. 获取当前时间（MMddHHmm 格式）
  * 2. 使用 React 状态更新机制填充值到输入框
  * 3. 触发回车键的检查和自动跳转行为
  */
 async function fillTimeAndProceed(input: HTMLInputElement): Promise<void> {
-  // 1. 获取当前时间
-  const timeValue = getCurrentTimeMmss();
-  console.log(`[Alt+1快捷键] 获取当前时间: ${timeValue}`);
+  // 1. 获取当前时间并添加前缀
+  const timeValue = getCurrentTimeMMddHHmm();
+  const fullCode = `${productCodePrefix}${timeValue}`;
+  console.log(`[Alt+1快捷键] 生成货号: ${fullCode}`);
 
-  // 2. 填充时间到输入框并触发 React 状态更新
-  await updateReactInputAsync(input, timeValue);
+  // 2. 填充货号到输入框并触发 React 状态更新
+  await updateReactInputAsync(input, fullCode);
 
   // 3. 触发回车键事件以执行原有的自动跳转逻辑
   // 创建一个键盘事件模拟回车键
@@ -103,14 +109,10 @@ async function fillTimeAndProceed(input: HTMLInputElement): Promise<void> {
  */
 export function handleAlt1Shortcut(event: KeyboardEvent): boolean {
   // 检查 Alt 键是否按下
-  if (!event.altKey) {
-    return false;
-  }
+  if (!event.altKey) return false;
 
   // 检查是否按下数字键 1
-  if (event.key !== "1" && event.key !== "!" ) {
-    return false;
-  }
+  if (event.key !== "1" && event.key !== "!" ) return false;
 
   console.log("[Alt+1快捷键] 检测到 Alt+1 快捷键");
 
@@ -170,3 +172,22 @@ export function registerAlt1Shortcut(): () => void {
     console.log("[Alt+1快捷键] 已注销 Alt+1 快捷键监听器");
   };
 }
+
+// #region 导出函数
+/**
+ * 设置货号生成前缀
+ * @param prefix - 货号前缀，默认为 "JGJ"
+ */
+export function setProductCodePrefix(prefix: string): void {
+  productCodePrefix = prefix;
+  console.log(`[货号生成] 已设置前缀: ${productCodePrefix}`);
+}
+
+/**
+ * 获取当前货号生成前缀
+ * @returns 当前前缀
+ */
+export function getProductCodePrefix(): string {
+  return productCodePrefix;
+}
+// #endregion

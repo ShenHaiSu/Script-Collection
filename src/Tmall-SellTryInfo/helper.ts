@@ -1,4 +1,4 @@
-import { ScrapedResult } from "./type";
+import {ScrapedResult} from "./type";
 
 // #region 工具函数
 /**
@@ -7,22 +7,6 @@ import { ScrapedResult } from "./type";
  * @returns Promise
  */
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/**
- * 等待元素出现
- * @param selector CSS 选择器
- * @param timeout 超时时间（毫秒），默认为 5000ms
- * @returns Promise<Element | null>
- */
-export const waitForElement = async (selector: string, timeout = 5000): Promise<Element | null> => {
-  const start = Date.now();
-  while (Date.now() - start < timeout) {
-    const el = document.querySelector(selector);
-    if (el) return el;
-    await sleep(200);
-  }
-  return null;
-};
 // #endregion
 
 // #region 内存变量存储

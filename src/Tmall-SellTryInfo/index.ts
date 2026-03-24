@@ -1,6 +1,6 @@
-import { sleep, dataStore } from "./helper";
-import { ScrapedResult } from "./type";
-import { showResultsTable } from "./ui/table";
+import {dataStore, sleep} from "./helper";
+import {ScrapedResult} from "./type";
+import {showResultsTable} from "./ui/table";
 
 
 // #region 全局配置
@@ -22,7 +22,10 @@ const DRAWER_OPEN_DELAY = 1000;
  * 创建页面遮罩层，用于在脚本执行期间阻止用户交互
  * @returns 遮罩层元素及其更新函数
  */
-function createOverlay(): { overlay: HTMLElement; updateProgress: (current: number, total: number, message: string) => void } {
+function createOverlay(): {
+  overlay: HTMLElement;
+  updateProgress: (current: number, total: number, message: string) => void
+} {
   const overlay = document.createElement("div");
   overlay.id = "script-overlay";
   overlay.style.position = "fixed";
@@ -104,7 +107,7 @@ function createOverlay(): { overlay: HTMLElement; updateProgress: (current: numb
     title.textContent = current >= total ? "采集完成!" : "正在采集商品信息...";
   };
 
-  return { overlay, updateProgress };
+  return {overlay, updateProgress};
 }
 
 /**
@@ -155,7 +158,7 @@ function extractItemInfoFromRow(tr: HTMLTableRowElement): ScrapedResult | null {
       return null;
     }
 
-    return { imgUrl, text: "", itemId, itemName };
+    return {imgUrl, text: "", itemId, itemName};
   } catch (error) {
     console.error("提取商品信息失败:", error);
     return null;
@@ -174,6 +177,7 @@ function getActionButtonFromRow(tr: HTMLTableRowElement): HTMLButtonElement | nu
   const lastTd = tds[tds.length - 1];
   return lastTd?.querySelector("button") ?? null;
 }
+
 // #endregion
 
 // #region 业务操作流程函数
@@ -281,8 +285,7 @@ async function processItemRow(tr: HTMLTableRowElement): Promise<boolean> {
   }
 
   // 5. 读取剪切板中的分享链接
-  const shareText = await readFromClipboard();
-  itemInfo.text = shareText;
+  itemInfo.text = await readFromClipboard();
 
   // 6. 验证数据完整性
   if (!itemInfo.text) {
@@ -347,6 +350,7 @@ async function ensureClipboardPermission(): Promise<boolean> {
     }
   }
 }
+
 // #endregion
 
 // #region 核心业务逻辑
@@ -356,7 +360,7 @@ async function ensureClipboardPermission(): Promise<boolean> {
  */
 async function handleGetInfo(): Promise<void> {
   // 1. 创建遮罩层，阻止用户交互
-  const { overlay, updateProgress } = createOverlay();
+  const {overlay, updateProgress} = createOverlay();
 
   try {
     // 2. 确保有剪切板访问权限
@@ -392,7 +396,6 @@ async function handleGetInfo(): Promise<void> {
       } catch (error) {
         console.error(`处理商品行时发生错误:`, error, tr);
         // 继续处理下一行，不中断整个流程
-        continue;
       }
     }
 
@@ -425,7 +428,7 @@ async function initScript(): Promise<void> {
 
   // 等待页面加载完毕
   if (document.readyState !== "complete") {
-    await new Promise((resolve) => window.addEventListener("load", resolve, { once: true }));
+    await new Promise((resolve) => window.addEventListener("load", resolve, {once: true}));
   }
 
   // 等待目标输入框出现
@@ -481,6 +484,7 @@ async function initScript(): Promise<void> {
 
   console.log("脚本初始化完成，按钮已添加");
 }
+
 // #endregion
 
 // #region 脚本入口
@@ -490,8 +494,9 @@ async function initScript(): Promise<void> {
  */
 function main(): void {
   console.log("天猫千牛店铺新品试销信息自动获取脚本已启动");
-  initScript();
+  initScript().then(() => {});
 }
+
 // #endregion
 
 main();

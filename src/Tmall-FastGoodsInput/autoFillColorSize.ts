@@ -1,6 +1,6 @@
 // #region 导入
-import { updateReactInputAsync } from "@/dev-tool/react-inputUpdate";
-import type { AutoFillColorSizeOptions, ParsedInputData, ContainerInfo } from "@/Tmall-FastGoodsInput/types";
+import {updateReactInputAsync} from "@/dev-tool/react-inputUpdate";
+import type {AutoFillColorSizeOptions, ContainerInfo, ParsedInputData} from "@/Tmall-FastGoodsInput/types";
 // #endregion
 
 // #region 变量定义
@@ -222,7 +222,10 @@ function parseInputText(text: string): ParsedInputData {
  * @param salePropsElement 销售属性容器元素
  * @returns 颜色和尺码容器信息
  */
-function findColorAndSizeContainers(salePropsElement: HTMLElement): { colorContainer: ContainerInfo | null; sizeContainer: ContainerInfo | null } {
+function findColorAndSizeContainers(salePropsElement: HTMLElement): {
+  colorContainer: ContainerInfo | null;
+  sizeContainer: ContainerInfo | null
+} {
   const childDivs = salePropsElement.querySelectorAll(":scope > div");
 
   let colorContainer: ContainerInfo | null = null;
@@ -251,7 +254,7 @@ function findColorAndSizeContainers(salePropsElement: HTMLElement): { colorConta
     }
   }
 
-  return { colorContainer, sizeContainer };
+  return {colorContainer, sizeContainer};
 }
 
 /**
@@ -303,7 +306,6 @@ async function addColors(
     }
 
     const input = inputs[inputIndex] as HTMLInputElement;
-    const oldValue = input.value;
 
     console.log(`[Tmall-FastGoodsInput] 添加颜色 "${colors[i]}" 到索引 ${inputIndex}`);
 
@@ -610,7 +612,7 @@ async function handleConfirm(): Promise<void> {
   }
 
   // 3. 找到颜色和尺码容器
-  const { colorContainer, sizeContainer } = findColorAndSizeContainers(salePropsElement as HTMLElement);
+  const {colorContainer, sizeContainer} = findColorAndSizeContainers(salePropsElement as HTMLElement);
 
   if (!colorContainer && !sizeContainer) {
     alert("未找到颜色或尺码容器");
@@ -650,8 +652,7 @@ async function handleConfirm(): Promise<void> {
 
       await addSizes(sizeContainer.element, parsedData.sizes, (current, total, currentItem) => {
         // 更新进度
-        const colorOffset = totalColors;
-        currentProgress = ((colorOffset + current) / totalItems) * 100;
+        currentProgress = ((totalColors + current) / totalItems) * 100;
         updateProgressBar(currentProgress);
         addProgressLog(`✓ 完成 尺码填写: ${currentItem}`, true);
       });
@@ -718,4 +719,5 @@ export function initAutoFillColorSize(options?: AutoFillColorSizeOptions) {
   // 监听键盘事件
   document.addEventListener("keydown", handleKeyDown, true);
 }
+
 // #endregion

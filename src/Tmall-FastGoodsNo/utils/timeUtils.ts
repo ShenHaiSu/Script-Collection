@@ -5,13 +5,13 @@
 
 /**
  * 获取当前时间的 mmdd 格式字符串
- * 
+ *
  * @returns {string} 格式化为 mmdd 的字符串（例如上午9点30分返回 "0930"）
- * 
+ *
  * @example
  * // 假设当前时间为 09:30:15
  * getCurrentTimeMmss(); // 返回 "0930"
- * 
+ *
  * @example
  * // 假设当前时间为 14:05:00
  * getCurrentTimeMmss(); // 返回 "1405"
@@ -26,6 +26,29 @@ export function getCurrentTimeMmss(): string {
   const formattedMinutes = minutes.toString().padStart(2, "0");
   
   return formattedHours + formattedMinutes;
+}
+
+/**
+ * 获取当前时间的 MMddHHmm 格式字符串（月日时分）
+ *
+ * @returns {string} 格式化为 MMddHHmm 的字符串（例如 2024年9月30日 09:30 返回 "09300930"）
+ *
+ * @example
+ * // 假设当前时间为 2024年9月30日 09:30:15
+ * getCurrentTimeMMddHHmm(); // 返回 "09300930"
+ *
+ * @example
+ * // 假设当前时间为 2024年12月5日 14:05:00
+ * getCurrentTimeMMddHHmm(); // 返回 "12051405"
+ */
+export function getCurrentTimeMMddHHmm(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+
+  return `${month}${day}${hours}${minutes}`;
 }
 
 /**

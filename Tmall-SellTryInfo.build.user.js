@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫千牛店铺新品试销信息自动获取
-// @version      2026.03.20.21.26.39
+// @version      2026.03.24.21.26.39
 // @description  在新品试销的商品列表页面，自动获取整页的商品图片以及分享链接文本。
 // @author       DaoLuoLTS
 // @match        https://qn.taobao.com/home.htm/trade-try-buy/merchList*
@@ -395,13 +395,9 @@
   function showResultsTable(data) {
     createStyles();
     const existingContainer = document.querySelector(".sell-try-info-table-container");
-    if (existingContainer) {
-      existingContainer.remove();
-    }
+    if (existingContainer) existingContainer.remove();
     const existingOverlay = document.querySelector(".sell-try-info-overlay");
-    if (existingOverlay) {
-      existingOverlay.remove();
-    }
+    if (existingOverlay) existingOverlay.remove();
     const overlay = document.createElement("div");
     overlay.className = "sell-try-info-overlay";
     document.body.appendChild(overlay);
@@ -582,8 +578,7 @@
     if (!await clickGenerateTokenButton()) {
       console.warn("生成口令失败，尝试继续处理");
     }
-    const shareText = await readFromClipboard();
-    itemInfo.text = shareText;
+    itemInfo.text = await readFromClipboard();
     if (!itemInfo.text) {
       console.warn("采集到的分享链接为空，但仍记录数据");
     }
@@ -653,7 +648,6 @@
           updateProgress(i + 1, total, `已处理: ${tr.getAttribute("data-row-key") || "未知商品"}`);
         } catch (error) {
           console.error(`处理商品行时发生错误:`, error, tr);
-          continue;
         }
       }
       const allResults = dataStore.getAll();
@@ -716,7 +710,8 @@
   }
   function main() {
     console.log("天猫千牛店铺新品试销信息自动获取脚本已启动");
-    initScript();
+    initScript().then(() => {
+    });
   }
   main();
 })();

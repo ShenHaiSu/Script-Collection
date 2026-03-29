@@ -5,3 +5,4 @@
 export { createFloatingTrigger, removeFloatingTrigger } from "./floatingButton";
 export { drawerManager, type ActionButtonConfig } from "./drawer";
 export { STYLES } from "./styles";
+export { createItemCodeDisplay, createItemCodeDisplays, removeAllItemCodeDisplays, copyToClipboard, type ItemCodeInfo } from "./itemCodeDisplay";

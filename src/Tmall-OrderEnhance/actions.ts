@@ -1,52 +1,13 @@
 /**
  * 订单增强交互逻辑 (actions.ts)
- * 存放实际的交互逻辑处理代码，不包含 UI 构建
+ * 交互函数挂载点 - 仅负责导入和挂载，实际逻辑在 /action 目录下实现
  */
 
-/**
- * 获取商品 ID 交互处理函数
- */
-export async function handleGetItemId(): Promise<void> {
-  console.log("执行获取商品 ID 逻辑...");
+// 从 action 目录导入实际交互处理函数
+import { handleGetItemId } from "@/Tmall-OrderEnhance/action/getItemId";
 
-  // 1. 在 Document 中 query "div.next-table.next-table-medium div.next-table-body"
-  const tableBody = document.querySelector<HTMLElement>("div.next-table.next-table-medium div.next-table-body");
-
-  if (!tableBody) {
-    console.warn("未找到订单表格容器 div.next-table.next-table-medium div.next-table-body");
-    alert("未找到订单表格容器，请确保在订单列表页面");
-    return;
-  }
-
-  // 2. 获取 childNodes 的 length
-  const childNodesLength = tableBody.childNodes.length;
-
-  console.log("表格内容子节点数量:", childNodesLength);
-
-  // 3. 如果 length === 1，检查 innerText 是否为 "没有符合条件的宝贝，请尝试其他搜索条件。"
-  if (childNodesLength === 1) {
-    const firstChild = tableBody.childNodes[0];
-    const innerText = firstChild.textContent?.trim() ?? "";
-
-    const emptyMessage = "没有符合条件的宝贝，请尝试其他搜索条件。";
-
-    if (innerText === emptyMessage) {
-      console.log("当前展示订单的位置下没有任何订单展示，无需进行后续操作");
-      alert("当前页面没有订单数据");
-      return;
-    }
-  }
-
-  // 4. 如果 length !== 1 或者内容不是 "没有符合条件的宝贝"，说明订单信息列表中有结果
-  console.log("订单信息列表中有结果，准备执行获取商品 ID 逻辑");
-
-  // ========================================
-  // TODO: 在此处编写实际的获取商品 ID 逻辑
-  // ========================================
-
-  console.log("获取商品 ID 逻辑执行完成");
-  // alert("获取商品 ID 功能开发中...");
-}
+// 重新导出供外部使用
+export { handleGetItemId };
 
 /**
  * 交互按钮配置列表

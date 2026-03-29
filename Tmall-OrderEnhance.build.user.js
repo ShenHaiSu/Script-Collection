@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫后台订单信息增强
-// @version      2026.03.28.22.52.56
+// @version      2026.03.29.22.12.06
 // @description  增强千牛天猫后台的已卖出宝贝的订单信息，展示更多实用性的信息内容。
 // @author       DaoLuoLTS
 // @match        https://myseller.taobao.com/home.htm/trade-platform/tp/sold*
@@ -358,7 +358,316 @@
   };
   var drawerManager = new DrawerManager();
 
-  // Tmall-OrderEnhance/actions.ts
+  // Tmall-OrderEnhance/ui/itemCodeDisplay.ts
+  var ITEM_CODE_STYLES = {
+    CONTAINER: `
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 6px 8px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-size: 12px;
+  `,
+    // 当没有商家编码时使用的inline-block样式
+    CONTAINER_INLINE: `
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+    padding: 2px 6px;
+    background: #f5f5f5;
+    border-radius: 3px;
+    font-size: 12px;
+    vertical-align: middle;
+  `,
+    LABEL: `
+    color: #666;
+    white-space: nowrap;
+  `,
+    VALUE: `
+    color: #333;
+    font-weight: 500;
+    font-family: monospace;
+  `,
+    COPY_BTN: `
+    padding: 2px 8px;
+    background: #ff5000;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: background 0.2s;
+  `,
+    COPY_BTN_HOVER: `
+    background: #ff6a00;
+  `,
+    COPY_SUCCESS: `
+    background: #52c41a;
+  `
+  };
+  async function copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      textArea.style.top = "-9999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const result = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      return result;
+    } catch (error) {
+      console.error("复制到剪贴板失败:", error);
+      return false;
+    }
+  }
+  function createItemCodeDisplay(itemCodeInfo) {
+    const { itemId, trElement } = itemCodeInfo;
+    const container = document.createElement("div");
+    container.className = "tmall-order-enhance-item-code";
+    const label = document.createElement("span");
+    label.className = "tmall-order-enhance-item-code-label";
+    label.style.cssText = ITEM_CODE_STYLES.LABEL;
+    label.textContent = "商品编码:";
+    const value = document.createElement("span");
+    value.className = "tmall-order-enhance-item-code-value";
+    value.style.cssText = ITEM_CODE_STYLES.VALUE;
+    value.textContent = String(itemId);
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "tmall-order-enhance-item-code-copy-btn";
+    copyBtn.style.cssText = ITEM_CODE_STYLES.COPY_BTN;
+    copyBtn.textContent = "复制";
+    copyBtn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const textToCopy = String(itemId);
+      const success = await copyToClipboard(textToCopy);
+      if (success) {
+        const originalText = copyBtn.textContent;
+        copyBtn.textContent = "已复制";
+        copyBtn.style.cssText = ITEM_CODE_STYLES.COPY_BTN + ITEM_CODE_STYLES.COPY_SUCCESS;
+        setTimeout(() => {
+          copyBtn.textContent = originalText;
+          copyBtn.style.cssText = ITEM_CODE_STYLES.COPY_BTN;
+        }, 2e3);
+      } else {
+        copyBtn.textContent = "复制失败";
+        setTimeout(() => {
+          copyBtn.textContent = "复制";
+        }, 2e3);
+      }
+    };
+    copyBtn.onmouseenter = () => {
+      if (copyBtn.textContent === "复制") {
+        copyBtn.style.cssText = ITEM_CODE_STYLES.COPY_BTN + ITEM_CODE_STYLES.COPY_BTN_HOVER;
+      }
+    };
+    copyBtn.onmouseleave = () => {
+      if (copyBtn.textContent === "复制") {
+        copyBtn.style.cssText = ITEM_CODE_STYLES.COPY_BTN;
+      }
+    };
+    container.appendChild(label);
+    container.appendChild(value);
+    container.appendChild(copyBtn);
+    const firstTd = trElement.querySelector("td");
+    if (firstTd) {
+      const wrapper = firstTd.querySelector(":scope > div");
+      if (wrapper) {
+        const productContainer = wrapper.querySelector(":scope > div");
+        if (productContainer) {
+          const sellerCodeElement = Array.from(productContainer.querySelectorAll("div")).find(
+            (div) => div.textContent && div.textContent.includes("商家编码：")
+          );
+          if (sellerCodeElement) {
+            container.style.cssText = ITEM_CODE_STYLES.CONTAINER;
+            sellerCodeElement.appendChild(container);
+          } else {
+            container.style.cssText = ITEM_CODE_STYLES.CONTAINER_INLINE;
+            const lastDiv = productContainer.querySelector(":scope > div:last-child");
+            if (lastDiv) {
+              lastDiv.parentNode?.insertBefore(container, lastDiv.nextSibling);
+            } else {
+              productContainer.lastChild?.appendChild(container);
+            }
+          }
+        } else {
+          container.style.cssText = ITEM_CODE_STYLES.CONTAINER_INLINE;
+          wrapper.appendChild(container);
+        }
+      } else {
+        container.style.cssText = ITEM_CODE_STYLES.CONTAINER_INLINE;
+        firstTd.appendChild(container);
+      }
+    } else {
+      container.style.cssText = ITEM_CODE_STYLES.CONTAINER_INLINE;
+      trElement.appendChild(container);
+    }
+    console.log(`商品编码展示已添加到子订单 (商品编码: ${itemId})`);
+    return container;
+  }
+  function removeAllItemCodeDisplays() {
+    const displays = document.querySelectorAll(".tmall-order-enhance-item-code");
+    displays.forEach((display) => {
+      display.remove();
+    });
+    console.log("已移除所有商品编码展示");
+  }
+
+  // dev-tool/gmFetch.ts
+  function gmFetch(url, options = {}) {
+    return new Promise((resolve, reject) => {
+      if (typeof GM_xmlhttpRequest === "undefined") {
+        reject(new Error("GM_xmlhttpRequest is not defined. Are you running in a Userscript environment?"));
+        return;
+      }
+      GM_xmlhttpRequest({
+        method: options.method || "GET",
+        url,
+        headers: options.headers,
+        data: options.body,
+        ...options,
+        onload: (response) => {
+          const gmResponse = {
+            ok: response.status >= 200 && response.status < 300,
+            status: response.status,
+            statusText: response.statusText,
+            data: response.response,
+            responseText: response.responseText,
+            responseHeaders: response.responseHeaders,
+            finalUrl: response.finalUrl,
+            json: () => {
+              try {
+                return JSON.parse(response.responseText);
+              } catch (e) {
+                throw new Error("Failed to parse response as JSON");
+              }
+            }
+          };
+          resolve(gmResponse);
+        },
+        onerror: (error) => {
+          reject(error);
+        },
+        onabort: () => {
+          reject(new Error("Request aborted"));
+        },
+        ontimeout: () => {
+          reject(new Error("Request timeout"));
+        }
+      });
+    });
+  }
+
+  // Tmall-OrderEnhance/action/getItemId.ts
+  function parseItemSnapshotHtml(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const scripts = doc.querySelectorAll("body script");
+    for (const script of scripts) {
+      const scriptContent = script.textContent;
+      if (scriptContent) {
+        const jsonParseMatch = scriptContent.match(/JSON\.parse\s*\(\s*(['"`])([\s\S]*?)\1\s*\)/);
+        if (jsonParseMatch && jsonParseMatch[2]) {
+          try {
+            const jsonStr = jsonParseMatch[2].replace(/\\"/g, '"').replace(/\\'/g, "'").replace(/\\\\/g, "\\");
+            return JSON.parse(jsonStr);
+          } catch (e) {
+            console.error("解析JSON失败:", e);
+            try {
+              return JSON.parse(scriptContent);
+            } catch (e2) {
+              console.error("直接解析script内容也失败:", e2);
+            }
+          }
+        }
+      }
+    }
+    const jsonObjectMatch = html.match(/\{[\s\S]*"itemId"[\s\S]*\}/);
+    if (jsonObjectMatch) {
+      try {
+        return JSON.parse(jsonObjectMatch[0]);
+      } catch (e) {
+        console.error("从HTML中提取JSON对象失败:", e);
+      }
+    }
+    return null;
+  }
+  function getItemUrlFromTr(tr) {
+    const img = tr.querySelector("td > div > div > a > img");
+    if (!img) return null;
+    const anchor = img.parentElement;
+    if (!anchor || anchor.tagName !== "A") return null;
+    const href = anchor.getAttribute("href");
+    return href;
+  }
+  function collectOrderItems() {
+    const tables = document.querySelectorAll("div.next-table.next-table-medium div.next-table-body > table");
+    const orderItems = [];
+    tables.forEach((table, parentIndex) => {
+      const tbody = table.querySelector("tbody");
+      if (!tbody) {
+        console.warn(`父订单 ${parentIndex + 1} 没有tbody`);
+        return;
+      }
+      const rows = tbody.querySelectorAll("tr");
+      for (let i = 1; i < rows.length; i++) {
+        const tr = rows[i];
+        const itemUrl = getItemUrlFromTr(tr);
+        if (itemUrl) {
+          orderItems.push({
+            itemUrl,
+            parentOrderIndex: parentIndex,
+            itemIndex: i - 1,
+            // 子订单索引从0开始
+            trElement: tr
+          });
+        }
+      }
+    });
+    return orderItems;
+  }
+  async function fetchItemSnapshot(itemUrl) {
+    try {
+      const response = await gmFetch(itemUrl, {
+        method: "GET",
+        headers: {
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "User-Agent": navigator.userAgent
+        }
+      });
+      if (!response.ok) {
+        console.error(`请求失败: ${response.status} ${response.statusText}`);
+        return null;
+      }
+      const jsonData = parseItemSnapshotHtml(response.responseText);
+      return jsonData;
+    } catch (error) {
+      console.error("获取商品快照失败:", error);
+      return null;
+    }
+  }
+  function extractItemId(snapshotData) {
+    if (!snapshotData) return null;
+    try {
+      const itemId = snapshotData?.baseSnapDO?.itemSnapDO?.itemId;
+      if (itemId !== void 0 && itemId !== null) {
+        return itemId;
+      }
+    } catch (e) {
+      console.error("提取商品编码失败:", e);
+    }
+    return null;
+  }
   async function handleGetItemId() {
     console.log("执行获取商品 ID 逻辑...");
     const tableBody = document.querySelector("div.next-table.next-table-medium div.next-table-body");
@@ -380,9 +689,43 @@
       }
     }
     console.log("订单信息列表中有结果，准备执行获取商品 ID 逻辑");
-    console.log("获取商品 ID 逻辑执行完成");
-    alert("获取商品 ID 功能开发中...");
+    const orderItems = collectOrderItems();
+    console.log(`共找到 ${orderItems.length} 个子订单商品`);
+    if (orderItems.length === 0) {
+      console.warn("未找到任何子订单商品信息");
+      alert("未找到子订单商品信息");
+      return;
+    }
+    removeAllItemCodeDisplays();
+    console.log("开始获取商品快照数据...");
+    for (let i = 0; i < orderItems.length; i++) {
+      const item = orderItems[i];
+      console.log(`
+--- 处理第 ${i + 1} 个商品 (父订单${item.parentOrderIndex + 1}, 子订单${item.itemIndex + 1}) ---`);
+      console.log("商品URL:", item.itemUrl);
+      const snapshotData = await fetchItemSnapshot(item.itemUrl);
+      if (snapshotData) {
+        console.log("商品快照数据:", snapshotData);
+        const itemId = extractItemId(snapshotData);
+        if (itemId !== null) {
+          console.log("商品编码 (itemId):", itemId);
+          createItemCodeDisplay({
+            itemId,
+            parentOrderIndex: item.parentOrderIndex,
+            itemIndex: item.itemIndex,
+            trElement: item.trElement
+          });
+        } else {
+          console.warn("未能从快照数据中提取到商品编码");
+        }
+      } else {
+        console.warn("未能获取到商品快照数据");
+      }
+    }
+    console.log("\n获取商品 ID 逻辑执行完成");
   }
+
+  // Tmall-OrderEnhance/actions.ts
   var ACTION_BUTTONS = [
     {
       id: "get-item-id",

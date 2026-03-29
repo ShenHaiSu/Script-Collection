@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫千牛店铺新品试销信息自动获取
-// @version      2026.03.24.22.07.07
+// @version      2026.03.28.22.42.31
 // @description  在新品试销的商品列表页面，自动获取整页的商品图片以及分享链接文本。
 // @author       DaoLuoLTS
 // @match        https://qn.taobao.com/home.htm/trade-try-buy/merchList*

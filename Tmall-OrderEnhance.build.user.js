@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         天猫后台订单信息增强
-// @version      2026.03.29.22.12.06
+// @version      2026.03.30.19.04.12
 // @description  增强千牛天猫后台的已卖出宝贝的订单信息，展示更多实用性的信息内容。
 // @author       DaoLuoLTS
 // @match        https://myseller.taobao.com/home.htm/trade-platform/tp/sold*
+// @match        https://qn.taobao.com/home.htm/trade-platform/tp/sold*
 // @namespace    https://github.com/ShenHaiSu/Script-Collection
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=tmall.com
 // @grant        GM_setValue

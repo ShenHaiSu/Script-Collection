@@ -32,7 +32,10 @@ export const meta = {
   icon: "https://www.google.com/s2/favicons?sz=64&domain=tmall.com",
 
   // @match: 脚本生效的 URL 模式。支持通配符。
-  match: ["https://qn.taobao.com/home.htm/trade-try-buy/merchList*"],
+  match: [
+    "https://qn.taobao.com/home.htm/trade-try-buy/merchList*",
+    "https://myseller.taobao.com/home.htm/trade-try-buy/merchList*",
+  ],
 
   // @grant: 申请脚本权限。常见的有 GM_xmlhttpRequest, GM_setValue, GM_getValue 等。
   grant: ["GM_setValue", "GM_getValue"],

@@ -2,7 +2,6 @@
  * 商品编码展示与复制组件 (itemCodeDisplay.ts)
  * 用于在子订单行中展示商品编码并提供复制功能
  */
-import { STYLES } from "./styles";
 
 /**
  * 商品编码信息

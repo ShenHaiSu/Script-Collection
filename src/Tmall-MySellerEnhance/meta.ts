@@ -32,9 +32,10 @@ export const meta = {
   icon: "https://www.google.com/s2/favicons?sz=64&domain=tmall.com",
 
   // @match: 脚本生效的 URL 模式。支持通配符。
+  // 修改为 host/* 以支持整个天猫/千牛后台，因为后台是单页面应用，href会跳来跳去
   match: [
-    "https://myseller.taobao.com/home.htm/trade-platform/tp/sold*",
-    "https://qn.taobao.com/home.htm/trade-platform/tp/sold*",
+    "https://myseller.taobao.com/*",
+    "https://qn.taobao.com/*",
   ],
 
   // @grant: 申请脚本权限。常见的有 GM_xmlhttpRequest, GM_setValue, GM_getValue 等。

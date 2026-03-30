@@ -1,7 +1,7 @@
 /**
  * 浮动触发按钮组件 (floatingButton.ts)
  */
-import { STYLES } from "./styles";
+import { STYLES } from "@/Tmall-MySellerEnhance/ui/styles";
 
 /**
  * 创建浮动触发按钮

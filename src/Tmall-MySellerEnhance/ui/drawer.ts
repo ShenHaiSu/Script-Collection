@@ -1,10 +1,16 @@
 /**
  * Drawer 侧边栏组件 (drawer.ts)
+ *
+ * 重构说明：
+ * 1. 支持每个 action 的 match 函数判定
+ * 2. 在打开 drawer 之前动态过滤按钮显示
+ * 3. 实现单页面应用下的动态功能切换
  */
-import { STYLES } from "./styles";
+import { STYLES } from "@/Tmall-MySellerEnhance/ui/styles";
 
 /**
  * 交互按钮配置项
+ * 扩展支持 match 函数用于动态判定是否显示
  */
 export interface ActionButtonConfig {
   /** 按钮唯一标识 */
@@ -15,6 +21,11 @@ export interface ActionButtonConfig {
   icon: string;
   /** 按钮点击回调 */
   onClick: () => void | Promise<void>;
+  /**
+   * 匹配函数 - 判定当前页面是否需要显示该功能按钮
+   * @returns true 表示当前页面需要显示该按钮，false 表示隐藏
+   */
+  match?: () => boolean;
 }
 
 /**
@@ -95,7 +106,7 @@ class DrawerManager {
 
     return `
       <div style="${STYLES.DRAWER_HEADER}">
-        <h3 style="${STYLES.DRAWER_TITLE}">订单增强工具</h3>
+        <h3 style="${STYLES.DRAWER_TITLE}">天猫千牛后台增强插件</h3>
         <button id="tmall-order-enhance-drawer-close" style="${STYLES.DRAWER_CLOSE_BTN}">✕</button>
       </div>
       <div style="${STYLES.DRAWER_CONTENT}">
@@ -169,12 +180,80 @@ class DrawerManager {
 
   /**
    * 切换 Drawer 状态
+   * 在打开 drawer 之前，根据每个 action 的 match 函数动态过滤按钮
    */
   public toggle(): void {
     if (this.state.isOpen) {
       this.close();
     } else {
+      // 打开前先过滤按钮 - 根据 match 函数动态显示/隐藏
+      this.filterButtonsByMatch();
       this.open();
+    }
+  }
+
+  /**
+   * 刷新按钮显示状态
+   * 公开方法，供外部调用（如路由变化时）
+   * 重新根据 match 函数过滤并更新按钮显示
+   */
+  public refreshButtons(): void {
+    this.filterButtonsByMatch();
+  }
+
+  /**
+   * 根据每个 action 的 match 函数动态过滤按钮
+   * 匹配成功的按钮显示，未匹配的按钮隐藏
+   */
+  private filterButtonsByMatch(): void {
+    const availableButtons = this.state.actionButtons.filter((btn) => {
+      // 如果没有 match 函数，默认显示
+      if (!btn.match) {
+        return true;
+      }
+      return btn.match();
+    });
+
+    // 更新 drawer 中的按钮显示状态
+    this.updateButtonsDisplay(availableButtons);
+
+    console.log(
+      "当前页面可用 actions:",
+      availableButtons.map((b) => b.label).join(", ")
+    );
+  }
+
+  /**
+   * 更新按钮的显示状态
+   * @param availableButtons 当前页面可用的按钮配置
+   */
+  private updateButtonsDisplay(availableButtons: ActionButtonConfig[]): void {
+    const availableIds = new Set(availableButtons.map((b) => b.id));
+
+    // 获取所有按钮元素
+    const buttonElements = document.querySelectorAll<HTMLButtonElement>(".tmall-order-enhance-action-btn");
+
+    buttonElements.forEach((btn) => {
+      const actionId = btn.getAttribute("data-action-id");
+      if (actionId && availableIds.has(actionId)) {
+        // 显示匹配的按钮
+        btn.style.display = "";
+      } else {
+        // 隐藏不匹配的按钮
+        btn.style.display = "none";
+      }
+    });
+
+    // 检查是否有可见的按钮，如果没有则显示提示信息
+    const visibleButtons = document.querySelectorAll<HTMLButtonElement>(
+      '.tmall-order-enhance-action-btn[style*="display: none"]'
+    );
+    const totalButtons = buttonElements.length;
+    const hiddenCount = visibleButtons.length;
+
+    // 可以在这里添加"无可用功能"的提示逻辑
+    if (totalButtons > 0 && hiddenCount === totalButtons) {
+      console.log("当前页面没有可用的功能按钮");
     }
   }
 

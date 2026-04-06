@@ -11,7 +11,7 @@
  */
 
 import { gmFetch } from "@/dev-tool/gmFetch";
-import { createItemCodeDisplay, removeAllItemCodeDisplays } from "../ui/itemCodeDisplay";
+import { createItemCodeDisplay, removeAllItemCodeDisplays } from "@/Tmall-MySellerEnhance/ui/component/getItemId.ui";
 
 /**
  * 订单子订单商品信息

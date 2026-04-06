@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         天猫千牛店铺新品试销信息自动获取
-// @version      2026.03.28.22.42.31
+// @version      2026.04.06.22.40.26
 // @description  在新品试销的商品列表页面，自动获取整页的商品图片以及分享链接文本。
 // @author       DaoLuoLTS
 // @match        https://qn.taobao.com/home.htm/trade-try-buy/merchList*
+// @match        https://myseller.taobao.com/home.htm/trade-try-buy/merchList*
 // @namespace    https://github.com/ShenHaiSu/Script-Collection
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=tmall.com
 // @grant        GM_setValue
@@ -595,9 +596,7 @@ ${rows}
     }
   }
   async function clickGenerateTokenButton() {
-    const drawerDivs = document.querySelectorAll(
-      "div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div"
-    );
+    const drawerDivs = document.querySelectorAll("div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div");
     if (drawerDivs.length === 0) {
       console.warn("未找到抽屉弹窗内容");
       return false;
@@ -617,16 +616,22 @@ ${rows}
     }
   }
   async function closeDrawer() {
-    const buttonList = document.querySelectorAll(
-      "div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div > button"
-    );
+    const buttonList = document.querySelectorAll("div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div > button");
     if (buttonList.length < 2) {
       console.warn("未找到足够的关闭按钮");
       return false;
     }
     return await safeClickButton(buttonList[1], BUTTON_CLICK_DELAY);
   }
-  async function processItemRow(tr) {
+  function checkDuplicate(currentText) {
+    const allResults = dataStore.getAll();
+    if (!currentText || allResults.length === 0) return -1;
+    for (let i = allResults.length - 1; i >= 0; i--) {
+      if (allResults[i].text === currentText) return i;
+    }
+    return -1;
+  }
+  async function processItemRow(tr, rowIndex, retryCount = 0) {
     const itemInfo = extractItemInfoFromRow(tr);
     if (!itemInfo) {
       console.warn("跳过无效商品行");
@@ -644,14 +649,34 @@ ${rows}
       console.warn("生成口令失败，尝试继续处理");
     }
     itemInfo.text = await readFromClipboard();
-    if (!itemInfo.text) {
-      console.warn("采集到的分享链接为空，但仍记录数据");
+    if (!itemInfo.text) console.warn("采集到的分享链接为空，但仍记录数据");
+    const duplicateIndex = checkDuplicate(itemInfo.text);
+    if (duplicateIndex !== -1) {
+      const errorMsg = `检测到重复分享链接！当前第 ${rowIndex + 1} 个TR的分享链接与第 ${duplicateIndex + 1} 个TR的分享链接重复。`;
+      console.error(errorMsg);
+      await closeDrawer();
+      if (retryCount < 2) {
+        console.log(`正在第 ${retryCount + 1} 次重试解析第 ${rowIndex + 1} 个TR...`);
+        return await processItemRow(tr, rowIndex, retryCount + 1);
+      }
+      const failData = {
+        失败位置: `第 ${rowIndex + 1} 个TR`,
+        重试次数: retryCount + 1,
+        商品ID: itemInfo.itemId,
+        商品名称: itemInfo.itemName,
+        分享链接: itemInfo.text,
+        重复链接位置: `第 ${duplicateIndex + 1} 个TR`
+      };
+      console.error("解析失效数据:", failData);
+      alert(`解析失效：在第 ${rowIndex + 1} 个TR发生解析失效问题，已重试 ${retryCount + 1} 次仍存在重复。
+
+详细数据：
+${JSON.stringify(failData, null, 2)}`);
+      throw new Error(`解析失效：在第 ${rowIndex + 1} 个TR发生解析失效问题`);
     }
     dataStore.add(itemInfo);
     console.log(`已采集商品：${itemInfo.itemId} - ${itemInfo.itemName}`);
-    if (!await closeDrawer()) {
-      console.warn("关闭抽屉失败，可能影响后续操作");
-    }
+    if (!await closeDrawer()) console.warn("关闭抽屉失败，可能影响后续操作");
     return true;
   }
   function getTableRows() {
@@ -706,13 +731,12 @@ ${rows}
         const tr = tableRows[i];
         updateProgress(i, total, `正在处理第 ${i + 1} 个商品...`);
         try {
-          const success = await processItemRow(tr);
-          if (success) {
-            successCount++;
-          }
+          const success = await processItemRow(tr, i);
+          if (success) successCount++;
           updateProgress(i + 1, total, `已处理: ${tr.getAttribute("data-row-key") || "未知商品"}`);
         } catch (error) {
           console.error(`处理商品行时发生错误:`, error, tr);
+          return;
         }
       }
       const allResults = dataStore.getAll();

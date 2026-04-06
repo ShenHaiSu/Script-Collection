@@ -50,4 +50,24 @@ export interface OrderRowData {
   /** 商品ID */
   itemId: string;
 }
+
+/**
+ * Action 配置接口
+ * 每个 action 需要实现此接口
+ */
+export interface ActionConfig {
+  /** 按钮唯一标识 */
+  id: string;
+  /** 按钮显示文字 */
+  label: string;
+  /** 按钮图标 (emoji) */
+  icon: string;
+  /** 按钮点击回调 */
+  onClick: () => void | Promise<void>;
+  /**
+   * 匹配函数 - 判定当前页面是否需要显示该功能按钮
+   * @returns true 表示当前页面需要显示该按钮，false 表示隐藏
+   */
+  match: () => boolean;
+}
 // #endregion

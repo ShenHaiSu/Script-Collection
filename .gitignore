@@ -1,4 +1,4 @@
 src/node_modules/
 .idea/*
-src/Tmall-OrderEnhance/action/data.json
-src/Tmall-OrderEnhance/action/element.html
+src/Tmall-MySellerEnhance/action/getItemId/data.json
+src/Tmall-MySellerEnhance/action/getItemId/element.html

@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         天猫后台订单信息增强
-// @version      2026.03.29.22.12.06
+// @version      2026.04.06.23.51.53
 // @description  增强千牛天猫后台的已卖出宝贝的订单信息，展示更多实用性的信息内容。
 // @author       DaoLuoLTS
-// @match        https://myseller.taobao.com/home.htm/trade-platform/tp/sold*
+// @match        https://myseller.taobao.com/*
+// @match        https://qn.taobao.com/*
 // @namespace    https://github.com/ShenHaiSu/Script-Collection
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=tmall.com
 // @grant        GM_setValue
@@ -21,7 +22,7 @@
   var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
   var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
-  // Tmall-OrderEnhance/ui/styles.ts
+  // Tmall-MySellerEnhance/ui/styles.ts
   var STYLES = {
     /**
      * 浮动触发按钮样式
@@ -182,15 +183,58 @@
      */
     ACTION_BUTTON_TEXT: `
     flex: 1;
+  `,
+    /**
+     * Drawer 快捷输入框容器样式
+     */
+    DRAWER_INPUT_CONTAINER: `
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    background: #f8f8f8;
+  `,
+    /**
+     * Drawer 快捷输入框样式
+     */
+    DRAWER_INPUT: `
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+  `,
+    /**
+     * Drawer 快捷输入框聚焦样式
+     */
+    DRAWER_INPUT_FOCUS: `
+    border-color: #ff5000;
+    box-shadow: 0 0 0 2px rgba(255, 80, 0, 0.1);
+  `,
+    /**
+     * Drawer 快捷输入提示文字样式
+     */
+    DRAWER_HINT: `
+    margin-top: 8px;
+    font-size: 12px;
+    color: #999;
+    line-height: 1.4;
+  `,
+    /**
+     * Drawer 按钮编号样式 (隐藏显示)
+     */
+    ACTION_BUTTON_NUMBER: `
+    display: none;
   `
   };
 
-  // Tmall-OrderEnhance/ui/floatingButton.ts
+  // Tmall-MySellerEnhance/ui/floatingButton.ts
   function createFloatingTrigger(onToggle) {
     const btn = document.createElement("div");
     btn.id = "tmall-order-enhance-floating-btn";
     btn.innerHTML = "📋";
-    btn.title = "订单增强工具";
+    btn.title = "千牛后台增强工具";
     btn.style.cssText = STYLES.FLOATING_BTN;
     btn.onmouseenter = () => {
       btn.style.transform = "scale(1.1)";
@@ -210,7 +254,159 @@
     return btn;
   }
 
-  // Tmall-OrderEnhance/ui/drawer.ts
+  // Tmall-MySellerEnhance/ui/component/drawerInput.ts
+  var DrawerInputManager = class {
+    constructor() {
+      __publicField(this, "inputElement", null);
+      __publicField(this, "hintElement", null);
+      __publicField(this, "buttonNumberMap", /* @__PURE__ */ new Map());
+      __publicField(this, "onTriggerCallback", null);
+    }
+    /**
+     * 构建输入框 HTML
+     * @param availableButtons 当前可用的按钮配置列表
+     * @returns 输入框区域的 HTML 字符串
+     */
+    buildInputHtml(availableButtons) {
+      this.buttonNumberMap.clear();
+      const hintParts = [];
+      availableButtons.forEach((btn, index) => {
+        const number = String(index + 1).padStart(2, "0");
+        this.buttonNumberMap.set(number, btn);
+        hintParts.push(`${number}:${btn.label}`);
+      });
+      const hintText = hintParts.length > 0 ? hintParts.join(" | ") : "当前页面无可用功能";
+      return `
+      <div style="${STYLES.DRAWER_INPUT_CONTAINER}">
+        <input
+          type="text"
+          id="tmall-order-enhance-quick-input"
+          style="${STYLES.DRAWER_INPUT}"
+          placeholder="输入编号快速执行..."
+          autocomplete="off"
+        />
+        <div id="tmall-order-enhance-quick-hint" style="${STYLES.DRAWER_HINT}">
+          可用: ${hintText}
+        </div>
+      </div>
+    `;
+    }
+    /**
+     * 绑定输入框事件
+     * @param onTrigger 按钮触发回调
+     */
+    bindEvents(onTrigger) {
+      this.onTriggerCallback = onTrigger;
+      this.inputElement = document.getElementById(
+        "tmall-order-enhance-quick-input"
+      );
+      this.hintElement = document.getElementById(
+        "tmall-order-enhance-quick-hint"
+      );
+      if (!this.inputElement) {
+        console.error("DrawerInput: 输入框元素未找到");
+        return;
+      }
+      this.inputElement.addEventListener("keydown", this.handleKeyDown.bind(this));
+      this.inputElement.addEventListener("focus", this.handleFocus.bind(this));
+      this.inputElement.addEventListener("blur", this.handleBlur.bind(this));
+    }
+    /**
+     * 处理键盘按下事件
+     */
+    handleKeyDown(e) {
+      if (e.key !== "Enter") {
+        return;
+      }
+      e.preventDefault();
+      const value = this.inputElement?.value.trim() || "";
+      if (value === "") {
+        const firstButton = this.buttonNumberMap.get("01");
+        if (firstButton && this.onTriggerCallback) {
+          this.onTriggerCallback(firstButton);
+          console.log("DrawerInput: 触发第一个按钮", firstButton.label);
+        } else {
+          console.warn("DrawerInput: 没有可用的按钮");
+        }
+      } else if (this.buttonNumberMap.has(value)) {
+        const button = this.buttonNumberMap.get(value);
+        if (button && this.onTriggerCallback) {
+          this.onTriggerCallback(button);
+          console.log(`DrawerInput: 触发按钮 [${value}]`, button.label);
+        }
+      } else {
+        console.warn(`DrawerInput: 无效的按钮编号 "${value}"`);
+        this.flashError();
+      }
+      if (this.inputElement) {
+        this.inputElement.value = "";
+      }
+    }
+    /**
+     * 处理输入框聚焦
+     */
+    handleFocus() {
+      if (this.inputElement) {
+        this.inputElement.style.cssText = STYLES.DRAWER_INPUT + STYLES.DRAWER_INPUT_FOCUS;
+      }
+    }
+    /**
+     * 处理输入框失焦
+     */
+    handleBlur() {
+      if (this.inputElement) {
+        this.inputElement.style.cssText = STYLES.DRAWER_INPUT;
+      }
+    }
+    /**
+     * 闪烁错误提示
+     */
+    flashError() {
+      if (!this.inputElement) return;
+      const originalBorder = this.inputElement.style.borderColor;
+      this.inputElement.style.borderColor = "#ff4d4f";
+      setTimeout(() => {
+        if (this.inputElement) {
+          this.inputElement.style.borderColor = originalBorder;
+        }
+      }, 300);
+    }
+    /**
+     * 自动聚焦到输入框
+     * @param delay 延迟毫秒数
+     */
+    focus(delay = 100) {
+      setTimeout(() => {
+        if (this.inputElement) {
+          this.inputElement.focus();
+          console.log("DrawerInput: 已聚焦到输入框");
+        }
+      }, delay);
+    }
+    /**
+     * 获取当前按钮编号映射
+     */
+    getButtonNumberMap() {
+      return this.buttonNumberMap;
+    }
+    /**
+     * 销毁输入框事件绑定
+     */
+    destroy() {
+      if (this.inputElement) {
+        this.inputElement.removeEventListener("keydown", this.handleKeyDown.bind(this));
+        this.inputElement.removeEventListener("focus", this.handleFocus.bind(this));
+        this.inputElement.removeEventListener("blur", this.handleBlur.bind(this));
+        this.inputElement = null;
+      }
+      this.hintElement = null;
+      this.buttonNumberMap.clear();
+      this.onTriggerCallback = null;
+    }
+  };
+  var drawerInputManager = new DrawerInputManager();
+
+  // Tmall-MySellerEnhance/ui/drawer.ts
   var DrawerManager = class {
     constructor() {
       __publicField(this, "state", {
@@ -240,15 +436,16 @@
       this.state.containerElement = document.createElement("div");
       this.state.containerElement.id = "tmall-order-enhance-drawer";
       this.state.containerElement.style.cssText = STYLES.DRAWER_CONTAINER;
-      this.state.containerElement.innerHTML = this.buildDrawerContent();
+      this.state.containerElement.innerHTML = this.buildDrawerContent([]);
       document.body.appendChild(this.state.maskElement);
       document.body.appendChild(this.state.containerElement);
       this.bindButtonEvents();
     }
     /**
      * 构建 Drawer 的 HTML 内容
+     * @param availableButtons 当前页面可用的按钮列表（用于生成输入框提示）
      */
-    buildDrawerContent() {
+    buildDrawerContent(availableButtons = []) {
       const buttonsHtml = this.state.actionButtons.map(
         (btn) => `
         <button
@@ -261,11 +458,13 @@
         </button>
       `
       ).join("");
+      const inputHtml = drawerInputManager.buildInputHtml(availableButtons);
       return `
       <div style="${STYLES.DRAWER_HEADER}">
-        <h3 style="${STYLES.DRAWER_TITLE}">订单增强工具</h3>
+        <h3 style="${STYLES.DRAWER_TITLE}">千牛后台增强工具</h3>
         <button id="tmall-order-enhance-drawer-close" style="${STYLES.DRAWER_CLOSE_BTN}">✕</button>
       </div>
+      ${inputHtml}
       <div style="${STYLES.DRAWER_CONTENT}">
         <div style="${STYLES.ACTION_BUTTONS_CONTAINER}">
           ${buttonsHtml}
@@ -278,9 +477,7 @@
      */
     bindButtonEvents() {
       const closeBtn = document.getElementById("tmall-order-enhance-drawer-close");
-      if (closeBtn) {
-        closeBtn.onclick = () => this.close();
-      }
+      if (closeBtn) closeBtn.onclick = () => this.close();
       const actionButtons = document.querySelectorAll(".tmall-order-enhance-action-btn");
       actionButtons.forEach((btn) => {
         btn.onmouseenter = () => {
@@ -297,6 +494,9 @@
           }
         };
       });
+      drawerInputManager.bindEvents((buttonConfig) => {
+        buttonConfig.onClick();
+      });
     }
     /**
      * 打开 Drawer
@@ -309,6 +509,7 @@
       this.state.isOpen = true;
       this.state.maskElement.style.cssText = STYLES.DRAWER_MASK + STYLES.DRAWER_MASK_VISIBLE;
       this.state.containerElement.style.cssText = STYLES.DRAWER_CONTAINER + STYLES.DRAWER_CONTAINER_VISIBLE;
+      drawerInputManager.focus(150);
       console.log("Drawer 已打开");
     }
     /**
@@ -326,12 +527,69 @@
     }
     /**
      * 切换 Drawer 状态
+     * 在打开 drawer 之前，根据每个 action 的 match 函数动态过滤按钮
      */
     toggle() {
       if (this.state.isOpen) {
         this.close();
       } else {
+        this.filterButtonsByMatch();
         this.open();
+      }
+    }
+    /**
+     * 刷新按钮显示状态
+     * 公开方法，供外部调用（如路由变化时）
+     * 重新根据 match 函数过滤并更新按钮显示
+     */
+    refreshButtons() {
+      this.filterButtonsByMatch();
+    }
+    /**
+     * 根据每个 action 的 match 函数动态过滤按钮
+     * 匹配成功的按钮显示，未匹配的按钮隐藏
+     * @returns 当前页面可用的按钮配置数组
+     */
+    filterButtonsByMatch() {
+      const availableButtons = this.state.actionButtons.filter((btn) => {
+        if (!btn.match) {
+          return true;
+        }
+        return btn.match();
+      });
+      if (this.state.containerElement) {
+        this.state.containerElement.innerHTML = this.buildDrawerContent(availableButtons);
+        this.bindButtonEvents();
+      }
+      this.updateButtonsDisplay(availableButtons);
+      console.log(
+        "当前页面可用 actions:",
+        availableButtons.map((b) => b.label).join(", ")
+      );
+      return availableButtons;
+    }
+    /**
+     * 更新按钮的显示状态
+     * @param availableButtons 当前页面可用的按钮配置
+     */
+    updateButtonsDisplay(availableButtons) {
+      const availableIds = new Set(availableButtons.map((b) => b.id));
+      const buttonElements = document.querySelectorAll(".tmall-order-enhance-action-btn");
+      buttonElements.forEach((btn) => {
+        const actionId = btn.getAttribute("data-action-id");
+        if (actionId && availableIds.has(actionId)) {
+          btn.style.display = "";
+        } else {
+          btn.style.display = "none";
+        }
+      });
+      const visibleButtons = document.querySelectorAll(
+        '.tmall-order-enhance-action-btn[style*="display: none"]'
+      );
+      const totalButtons = buttonElements.length;
+      const hiddenCount = visibleButtons.length;
+      if (totalButtons > 0 && hiddenCount === totalButtons) {
+        console.log("当前页面没有可用的功能按钮");
       }
     }
     /**
@@ -344,6 +602,7 @@
      * 销毁 Drawer 组件
      */
     destroy() {
+      drawerInputManager.destroy();
       if (this.state.maskElement) {
         this.state.maskElement.remove();
         this.state.maskElement = null;
@@ -358,7 +617,7 @@
   };
   var drawerManager = new DrawerManager();
 
-  // Tmall-OrderEnhance/ui/itemCodeDisplay.ts
+  // Tmall-MySellerEnhance/ui/component/getItemId.ui.ts
   var ITEM_CODE_STYLES = {
     CONTAINER: `
     display: flex;
@@ -406,6 +665,38 @@
   `,
     COPY_SUCCESS: `
     background: #52c41a;
+  `,
+    // 商品列表按钮样式
+    LINK_BTN: `
+    padding: 2px 8px;
+    background: #ff5000;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: background 0.2s;
+    text-decoration: none;
+    display: inline-block;
+  `,
+    LINK_BTN_HOVER: `
+    background: #ff6a00;
+  `,
+    // 商品详情按钮样式
+    DETAIL_BTN: `
+    padding: 2px 8px;
+    background: #ff5000;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: background 0.2s;
+    text-decoration: none;
+    display: inline-block;
+  `,
+    DETAIL_BTN_HOVER: `
+    background: #ff6a00;
   `
   };
   async function copyToClipboard(text) {
@@ -476,9 +767,39 @@
         copyBtn.style.cssText = ITEM_CODE_STYLES.COPY_BTN;
       }
     };
+    const listBtn = document.createElement("a");
+    listBtn.className = "tmall-order-enhance-item-code-list-btn";
+    listBtn.style.cssText = ITEM_CODE_STYLES.LINK_BTN;
+    listBtn.textContent = "商品列表";
+    listBtn.href = `https://myseller.taobao.com/home.htm/SellManage/on_sale?queryItemId=${itemId}`;
+    listBtn.target = "_blank";
+    listBtn.rel = "noopener noreferrer";
+    listBtn.title = "在卖家中心查看商品列表";
+    listBtn.addEventListener("mouseenter", () => {
+      listBtn.style.cssText = ITEM_CODE_STYLES.LINK_BTN + ITEM_CODE_STYLES.LINK_BTN_HOVER;
+    });
+    listBtn.addEventListener("mouseleave", () => {
+      listBtn.style.cssText = ITEM_CODE_STYLES.LINK_BTN;
+    });
+    const detailBtn = document.createElement("a");
+    detailBtn.className = "tmall-order-enhance-item-code-detail-btn";
+    detailBtn.style.cssText = ITEM_CODE_STYLES.DETAIL_BTN;
+    detailBtn.textContent = "商品详情";
+    detailBtn.href = `https://detail.tmall.com/item.htm?id=${itemId}`;
+    detailBtn.target = "_blank";
+    detailBtn.rel = "noopener noreferrer";
+    detailBtn.title = "在淘宝查看商品详情";
+    detailBtn.addEventListener("mouseenter", () => {
+      detailBtn.style.cssText = ITEM_CODE_STYLES.DETAIL_BTN + ITEM_CODE_STYLES.DETAIL_BTN_HOVER;
+    });
+    detailBtn.addEventListener("mouseleave", () => {
+      detailBtn.style.cssText = ITEM_CODE_STYLES.DETAIL_BTN;
+    });
     container.appendChild(label);
     container.appendChild(value);
     container.appendChild(copyBtn);
+    container.appendChild(listBtn);
+    container.appendChild(detailBtn);
     const firstTd = trElement.querySelector("td");
     if (firstTd) {
       const wrapper = firstTd.querySelector(":scope > div");
@@ -568,7 +889,7 @@
     });
   }
 
-  // Tmall-OrderEnhance/action/getItemId.ts
+  // Tmall-MySellerEnhance/action/getItemId/getItemId.action.ts
   function parseItemSnapshotHtml(html) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
@@ -725,13 +1046,21 @@
     console.log("\n获取商品 ID 逻辑执行完成");
   }
 
-  // Tmall-OrderEnhance/actions.ts
+  // Tmall-MySellerEnhance/match/getItemId.match.ts
+  function getItemIdMatch() {
+    const href = window.location.href;
+    return href.includes("trade-platform/tp/sold") || href.includes("trade-platform/tp/order");
+  }
+
+  // Tmall-MySellerEnhance/actions.ts
   var ACTION_BUTTONS = [
     {
       id: "get-item-id",
-      label: "获取商品id",
+      label: "获取本页订单商品ID",
       icon: "🔗",
-      onClick: handleGetItemId
+      onClick: handleGetItemId,
+      // match 函数：从 match 目录导入
+      match: getItemIdMatch
     }
     // 后续可以在这里添加更多按钮配置
     // {
@@ -739,10 +1068,11 @@
     //   label: "获取订单ID",
     //   icon: "📋",
     //   onClick: handleGetOrderId,
+    //   match: 由各自的match.ts来实现并暴露match函数,
     // },
   ];
 
-  // Tmall-OrderEnhance/index.ts
+  // Tmall-MySellerEnhance/index.ts
   function main() {
     console.log("天猫后台订单信息增强脚本已启动");
     initScript();
@@ -755,6 +1085,7 @@
         clearInterval(checkInterval);
         console.log("页面已加载完成，开始初始化 UI");
         initUI();
+        initRouteListener();
       }
     }, 500);
   }
@@ -769,6 +1100,32 @@
       drawerManager.toggle();
     });
     console.log("UI 组件初始化完成");
+  }
+  function initRouteListener() {
+    const originalPushState = history.pushState;
+    history.pushState = function(...args) {
+      originalPushState.apply(this, args);
+      setTimeout(() => {
+        console.log("路由变化，重新检查按钮显示状态");
+        drawerManager.refreshButtons();
+      }, 100);
+    };
+    window.addEventListener("popstate", () => {
+      setTimeout(() => {
+        console.log("浏览器前进/后退，重新检查按钮显示状态");
+        drawerManager.refreshButtons();
+      }, 100);
+    });
+    let lastUrl = window.location.href;
+    setInterval(() => {
+      const currentUrl = window.location.href;
+      if (currentUrl !== lastUrl) {
+        lastUrl = currentUrl;
+        console.log("URL 轮询检测到变化，重新检查按钮显示状态");
+        drawerManager.refreshButtons();
+      }
+    }, 1e3);
+    console.log("路由监听器已初始化");
   }
   main();
 })();

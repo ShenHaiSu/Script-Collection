@@ -175,4 +175,52 @@ export const STYLES = {
   ACTION_BUTTON_TEXT: `
     flex: 1;
   `,
+
+  /**
+   * Drawer 快捷输入框容器样式
+   */
+  DRAWER_INPUT_CONTAINER: `
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    background: #f8f8f8;
+  `,
+
+  /**
+   * Drawer 快捷输入框样式
+   */
+  DRAWER_INPUT: `
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+  `,
+
+  /**
+   * Drawer 快捷输入框聚焦样式
+   */
+  DRAWER_INPUT_FOCUS: `
+    border-color: #ff5000;
+    box-shadow: 0 0 0 2px rgba(255, 80, 0, 0.1);
+  `,
+
+  /**
+   * Drawer 快捷输入提示文字样式
+   */
+  DRAWER_HINT: `
+    margin-top: 8px;
+    font-size: 12px;
+    color: #999;
+    line-height: 1.4;
+  `,
+
+  /**
+   * Drawer 按钮编号样式 (隐藏显示)
+   */
+  ACTION_BUTTON_NUMBER: `
+    display: none;
+  `,
 };

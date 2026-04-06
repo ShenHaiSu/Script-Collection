@@ -12,7 +12,7 @@ export function createFloatingTrigger(onToggle: () => void): HTMLDivElement {
   const btn = document.createElement("div");
   btn.id = "tmall-order-enhance-floating-btn";
   btn.innerHTML = "📋";
-  btn.title = "订单增强工具";
+  btn.title = "千牛后台增强工具";
   btn.style.cssText = STYLES.FLOATING_BTN;
 
   // 鼠标悬停效果

@@ -5,8 +5,10 @@
  * 1. 支持每个 action 的 match 函数判定
  * 2. 在打开 drawer 之前动态过滤按钮显示
  * 3. 实现单页面应用下的动态功能切换
+ * 4. 支持快捷输入框快速触发按钮
  */
 import { STYLES } from "@/Tmall-MySellerEnhance/ui/styles";
+import { drawerInputManager } from "@/Tmall-MySellerEnhance/ui/component/drawerInput";
 
 /**
  * 交互按钮配置项
@@ -74,8 +76,8 @@ class DrawerManager {
     this.state.containerElement.id = "tmall-order-enhance-drawer";
     this.state.containerElement.style.cssText = STYLES.DRAWER_CONTAINER;
 
-    // 构建 Drawer 内容
-    this.state.containerElement.innerHTML = this.buildDrawerContent();
+    // 构建 Drawer 内容（初始化时传入空数组）
+    this.state.containerElement.innerHTML = this.buildDrawerContent([]);
 
     // 添加到页面
     document.body.appendChild(this.state.maskElement);
@@ -87,8 +89,9 @@ class DrawerManager {
 
   /**
    * 构建 Drawer 的 HTML 内容
+   * @param availableButtons 当前页面可用的按钮列表（用于生成输入框提示）
    */
-  private buildDrawerContent(): string {
+  private buildDrawerContent(availableButtons: ActionButtonConfig[] = []): string {
     const buttonsHtml = this.state.actionButtons
       .map(
         (btn) => `
@@ -104,11 +107,15 @@ class DrawerManager {
       )
       .join("");
 
+    // 构建快捷输入框 HTML
+    const inputHtml = drawerInputManager.buildInputHtml(availableButtons);
+
     return `
       <div style="${STYLES.DRAWER_HEADER}">
-        <h3 style="${STYLES.DRAWER_TITLE}">天猫千牛后台增强插件</h3>
+        <h3 style="${STYLES.DRAWER_TITLE}">千牛后台增强工具</h3>
         <button id="tmall-order-enhance-drawer-close" style="${STYLES.DRAWER_CLOSE_BTN}">✕</button>
       </div>
+      ${inputHtml}
       <div style="${STYLES.DRAWER_CONTENT}">
         <div style="${STYLES.ACTION_BUTTONS_CONTAINER}">
           ${buttonsHtml}
@@ -123,9 +130,7 @@ class DrawerManager {
   private bindButtonEvents(): void {
     // 绑定关闭按钮事件
     const closeBtn = document.getElementById("tmall-order-enhance-drawer-close");
-    if (closeBtn) {
-      closeBtn.onclick = () => this.close();
-    }
+    if (closeBtn) closeBtn.onclick = () => this.close();
 
     // 绑定交互按钮事件
     const actionButtons = document.querySelectorAll<HTMLButtonElement>(".tmall-order-enhance-action-btn");
@@ -144,6 +149,11 @@ class DrawerManager {
         }
       };
     });
+
+    // 绑定快捷输入框事件
+    drawerInputManager.bindEvents((buttonConfig) => {
+      buttonConfig.onClick();
+    });
   }
 
   /**
@@ -158,6 +168,9 @@ class DrawerManager {
     this.state.isOpen = true;
     this.state.maskElement.style.cssText = STYLES.DRAWER_MASK + STYLES.DRAWER_MASK_VISIBLE;
     this.state.containerElement.style.cssText = STYLES.DRAWER_CONTAINER + STYLES.DRAWER_CONTAINER_VISIBLE;
+
+    // 自动聚焦到快捷输入框
+    drawerInputManager.focus(150);
 
     console.log("Drawer 已打开");
   }
@@ -204,8 +217,9 @@ class DrawerManager {
   /**
    * 根据每个 action 的 match 函数动态过滤按钮
    * 匹配成功的按钮显示，未匹配的按钮隐藏
+   * @returns 当前页面可用的按钮配置数组
    */
-  private filterButtonsByMatch(): void {
+  private filterButtonsByMatch(): ActionButtonConfig[] {
     const availableButtons = this.state.actionButtons.filter((btn) => {
       // 如果没有 match 函数，默认显示
       if (!btn.match) {
@@ -214,6 +228,12 @@ class DrawerManager {
       return btn.match();
     });
 
+    // 重建 drawer 内容（包含输入框）
+    if (this.state.containerElement) {
+      this.state.containerElement.innerHTML = this.buildDrawerContent(availableButtons);
+      this.bindButtonEvents();
+    }
+
     // 更新 drawer 中的按钮显示状态
     this.updateButtonsDisplay(availableButtons);
 
@@ -221,6 +241,8 @@ class DrawerManager {
       "当前页面可用 actions:",
       availableButtons.map((b) => b.label).join(", ")
     );
+
+    return availableButtons;
   }
 
   /**
@@ -268,6 +290,9 @@ class DrawerManager {
    * 销毁 Drawer 组件
    */
   public destroy(): void {
+    // 销毁输入框管理器
+    drawerInputManager.destroy();
+
     if (this.state.maskElement) {
       this.state.maskElement.remove();
       this.state.maskElement = null;

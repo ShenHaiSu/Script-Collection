@@ -11,4 +11,4 @@ export {
   removeAllItemCodeDisplays,
   copyToClipboard,
   type ItemCodeInfo,
-} from "@/Tmall-MySellerEnhance/ui/itemCodeDisplay";
+} from "@/Tmall-MySellerEnhance/ui/component/getItemId.ui";

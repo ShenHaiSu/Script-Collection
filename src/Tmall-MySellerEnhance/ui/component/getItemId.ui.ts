@@ -68,6 +68,38 @@ const ITEM_CODE_STYLES = {
   COPY_SUCCESS: `
     background: #52c41a;
   `,
+  // 商品列表按钮样式
+  LINK_BTN: `
+    padding: 2px 8px;
+    background: #ff5000;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: background 0.2s;
+    text-decoration: none;
+    display: inline-block;
+  `,
+  LINK_BTN_HOVER: `
+    background: #ff6a00;
+  `,
+  // 商品详情按钮样式
+  DETAIL_BTN: `
+    padding: 2px 8px;
+    background: #ff5000;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: background 0.2s;
+    text-decoration: none;
+    display: inline-block;
+  `,
+  DETAIL_BTN_HOVER: `
+    background: #ff6a00;
+  `,
 };
 
 /**
@@ -173,10 +205,48 @@ export function createItemCodeDisplay(itemCodeInfo: ItemCodeInfo): HTMLDivElemen
     }
   };
 
+  // 创建商品列表按钮
+  const listBtn = document.createElement("a");
+  listBtn.className = "tmall-order-enhance-item-code-list-btn";
+  listBtn.style.cssText = ITEM_CODE_STYLES.LINK_BTN;
+  listBtn.textContent = "商品列表";
+  listBtn.href = `https://myseller.taobao.com/home.htm/SellManage/on_sale?queryItemId=${itemId}`;
+  listBtn.target = "_blank";
+  listBtn.rel = "noopener noreferrer";
+  listBtn.title = "在卖家中心查看商品列表";
+
+  // 商品列表按钮悬停效果
+  listBtn.addEventListener("mouseenter", () => {
+    listBtn.style.cssText = ITEM_CODE_STYLES.LINK_BTN + ITEM_CODE_STYLES.LINK_BTN_HOVER;
+  });
+  listBtn.addEventListener("mouseleave", () => {
+    listBtn.style.cssText = ITEM_CODE_STYLES.LINK_BTN;
+  });
+
+  // 创建商品详情按钮
+  const detailBtn = document.createElement("a");
+  detailBtn.className = "tmall-order-enhance-item-code-detail-btn";
+  detailBtn.style.cssText = ITEM_CODE_STYLES.DETAIL_BTN;
+  detailBtn.textContent = "商品详情";
+  detailBtn.href = `https://detail.tmall.com/item.htm?id=${itemId}`;
+  detailBtn.target = "_blank";
+  detailBtn.rel = "noopener noreferrer";
+  detailBtn.title = "在淘宝查看商品详情";
+
+  // 商品详情按钮悬停效果
+  detailBtn.addEventListener("mouseenter", () => {
+    detailBtn.style.cssText = ITEM_CODE_STYLES.DETAIL_BTN + ITEM_CODE_STYLES.DETAIL_BTN_HOVER;
+  });
+  detailBtn.addEventListener("mouseleave", () => {
+    detailBtn.style.cssText = ITEM_CODE_STYLES.DETAIL_BTN;
+  });
+
   // 组装元素
   container.appendChild(label);
   container.appendChild(value);
   container.appendChild(copyBtn);
+  container.appendChild(listBtn);
+  container.appendChild(detailBtn);
 
   // 将容器插入到 tr 中的合适位置
   // 使用纯HTML元素结构作为锚点，不依赖可能变化的类名

@@ -32,7 +32,7 @@ export type { ActionConfig };
 export const ACTION_BUTTONS: ActionConfig[] = [
   {
     id: "get-item-id",
-    label: "获取商品id",
+    label: "获取本页订单商品ID",
     icon: "🔗",
     onClick: handleGetItemId,
     // match 函数：从 match 目录导入

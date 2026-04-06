@@ -1,7 +1,6 @@
-import {dataStore, sleep} from "./helper";
-import {ScrapedResult} from "./type";
-import {showResultsTable} from "./ui/table";
-
+import { dataStore, sleep } from "./helper";
+import { ScrapedResult } from "./type";
+import { showResultsTable } from "./ui/table";
 
 // #region 全局配置
 /** 是否开启调试模式（开启后仅采集前两条数据） */
@@ -24,7 +23,7 @@ const DRAWER_OPEN_DELAY = 1000;
  */
 function createOverlay(): {
   overlay: HTMLElement;
-  updateProgress: (current: number, total: number, message: string) => void
+  updateProgress: (current: number, total: number, message: string) => void;
 } {
   const overlay = document.createElement("div");
   overlay.id = "script-overlay";
@@ -107,7 +106,7 @@ function createOverlay(): {
     title.textContent = current >= total ? "采集完成!" : "正在采集商品信息...";
   };
 
-  return {overlay, updateProgress};
+  return { overlay, updateProgress };
 }
 
 /**
@@ -116,10 +115,7 @@ function createOverlay(): {
  * @param delay 点击后等待的时间（毫秒）
  * @returns 是否成功执行点击
  */
-async function safeClickButton(
-  button: HTMLButtonElement | HTMLElement | null,
-  delay = BUTTON_CLICK_DELAY,
-): Promise<boolean> {
+async function safeClickButton(button: HTMLButtonElement | HTMLElement | null, delay = BUTTON_CLICK_DELAY): Promise<boolean> {
   if (!button) {
     console.warn("按钮元素不存在，跳过点击操作");
     return false;
@@ -158,7 +154,7 @@ function extractItemInfoFromRow(tr: HTMLTableRowElement): ScrapedResult | null {
       return null;
     }
 
-    return {imgUrl, text: "", itemId, itemName};
+    return { imgUrl, text: "", itemId, itemName };
   } catch (error) {
     console.error("提取商品信息失败:", error);
     return null;
@@ -207,9 +203,7 @@ async function switchToShareTab(): Promise<boolean> {
  * @returns 是否成功执行
  */
 async function clickGenerateTokenButton(): Promise<boolean> {
-  const drawerDivs = document.querySelectorAll<HTMLElement>(
-    "div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div",
-  );
+  const drawerDivs = document.querySelectorAll<HTMLElement>("div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div");
 
   if (drawerDivs.length === 0) {
     console.warn("未找到抽屉弹窗内容");
@@ -241,9 +235,7 @@ async function readFromClipboard(): Promise<string> {
  * @returns 是否成功关闭
  */
 async function closeDrawer(): Promise<boolean> {
-  const buttonList = document.querySelectorAll(
-    "div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div > button",
-  );
+  const buttonList = document.querySelectorAll("div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div > button");
 
   // 注意：索引 1 表示第二个按钮（关闭按钮）
   if (buttonList.length < 2) {
@@ -255,11 +247,29 @@ async function closeDrawer(): Promise<boolean> {
 }
 
 /**
+ * 检查分享链接是否与已采集的数据重复
+ * @param currentText 当前采集到的分享链接
+ * @returns 重复的索引（从末尾向前查找），如果未重复返回 -1
+ */
+function checkDuplicate(currentText: string): number {
+  const allResults = dataStore.getAll();
+  if (!currentText || allResults.length === 0) return -1;
+
+  // 从末尾向前比较
+  for (let i = allResults.length - 1; i >= 0; i--) {
+    if (allResults[i].text === currentText) return i;
+  }
+  return -1;
+}
+
+/**
  * 处理单个商品行的信息采集
  * @param tr 表格行元素
+ * @param rowIndex 当前处理的行索引（从0开始）
+ * @param retryCount 当前重试次数
  * @returns 是否处理成功
  */
-async function processItemRow(tr: HTMLTableRowElement): Promise<boolean> {
+async function processItemRow(tr: HTMLTableRowElement, rowIndex: number, retryCount = 0): Promise<boolean> {
   // 1. 提取商品基础信息
   const itemInfo = extractItemInfoFromRow(tr);
   if (!itemInfo) {
@@ -288,18 +298,43 @@ async function processItemRow(tr: HTMLTableRowElement): Promise<boolean> {
   itemInfo.text = await readFromClipboard();
 
   // 6. 验证数据完整性
-  if (!itemInfo.text) {
-    console.warn("采集到的分享链接为空，但仍记录数据");
+  if (!itemInfo.text) console.warn("采集到的分享链接为空，但仍记录数据");
+
+  // 7. 检查分享链接是否与已采集的数据重复（从末尾向前比较）
+  const duplicateIndex = checkDuplicate(itemInfo.text);
+  if (duplicateIndex !== -1) {
+    const errorMsg = `检测到重复分享链接！当前第 ${rowIndex + 1} 个TR的分享链接与第 ${duplicateIndex + 1} 个TR的分享链接重复。`;
+    console.error(errorMsg);
+
+    // 关闭当前抽屉
+    await closeDrawer();
+
+    // 如果重试次数小于2次，重新解析当前行
+    if (retryCount < 2) {
+      console.log(`正在第 ${retryCount + 1} 次重试解析第 ${rowIndex + 1} 个TR...`);
+      return await processItemRow(tr, rowIndex, retryCount + 1);
+    }
+
+    // 重试超过2次，放弃整体任务
+    const failData = {
+      失败位置: `第 ${rowIndex + 1} 个TR`,
+      重试次数: retryCount + 1,
+      商品ID: itemInfo.itemId,
+      商品名称: itemInfo.itemName,
+      分享链接: itemInfo.text,
+      重复链接位置: `第 ${duplicateIndex + 1} 个TR`,
+    };
+    console.error("解析失效数据:", failData);
+    alert(`解析失效：在第 ${rowIndex + 1} 个TR发生解析失效问题，已重试 ${retryCount + 1} 次仍存在重复。\n\n详细数据：\n${JSON.stringify(failData, null, 2)}`);
+    throw new Error(`解析失效：在第 ${rowIndex + 1} 个TR发生解析失效问题`);
   }
 
-  // 7. 存储采集结果
+  // 8. 存储采集结果
   dataStore.add(itemInfo);
   console.log(`已采集商品：${itemInfo.itemId} - ${itemInfo.itemName}`);
 
-  // 8. 关闭抽屉，准备处理下一项
-  if (!(await closeDrawer())) {
-    console.warn("关闭抽屉失败，可能影响后续操作");
-  }
+  // 9. 关闭抽屉，准备处理下一项
+  if (!(await closeDrawer())) console.warn("关闭抽屉失败，可能影响后续操作");
 
   return true;
 }
@@ -360,7 +395,7 @@ async function ensureClipboardPermission(): Promise<boolean> {
  */
 async function handleGetInfo(): Promise<void> {
   // 1. 创建遮罩层，阻止用户交互
-  const {overlay, updateProgress} = createOverlay();
+  const { overlay, updateProgress } = createOverlay();
 
   try {
     // 2. 确保有剪切板访问权限
@@ -388,14 +423,13 @@ async function handleGetInfo(): Promise<void> {
       const tr = tableRows[i];
       updateProgress(i, total, `正在处理第 ${i + 1} 个商品...`);
       try {
-        const success = await processItemRow(tr);
-        if (success) {
-          successCount++;
-        }
+        const success = await processItemRow(tr, i);
+        if (success) successCount++;
         updateProgress(i + 1, total, `已处理: ${tr.getAttribute("data-row-key") || "未知商品"}`);
       } catch (error) {
         console.error(`处理商品行时发生错误:`, error, tr);
-        // 继续处理下一行，不中断整个流程
+        // 解析失效时中断整个流程
+        return;
       }
     }
 
@@ -428,7 +462,7 @@ async function initScript(): Promise<void> {
 
   // 等待页面加载完毕
   if (document.readyState !== "complete") {
-    await new Promise((resolve) => window.addEventListener("load", resolve, {once: true}));
+    await new Promise((resolve) => window.addEventListener("load", resolve, { once: true }));
   }
 
   // 等待目标输入框出现
@@ -467,8 +501,7 @@ async function initScript(): Promise<void> {
 
   // 创建"获取本页信息"按钮
   const button = document.createElement("button");
-  button.className =
-    "tbd-btn css-fd478t css-var-rb tbd-btn-primary tbd-btn-color-primary tbd-btn-variant-solid tbd-btn-lg";
+  button.className = "tbd-btn css-fd478t css-var-rb tbd-btn-primary tbd-btn-color-primary tbd-btn-variant-solid tbd-btn-lg";
   button.innerText = "获取本页信息";
   button.style.marginRight = "10px";
   button.type = "button"; // 防止表单提交

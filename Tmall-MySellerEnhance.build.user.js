@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫后台订单信息增强
-// @version      2026.04.06.23.51.53
+// @version      2026.04.07.23.55.08
 // @description  增强千牛天猫后台的已卖出宝贝的订单信息，展示更多实用性的信息内容。
 // @author       DaoLuoLTS
 // @match        https://myseller.taobao.com/*
@@ -254,7 +254,7 @@
     return btn;
   }
 
-  // Tmall-MySellerEnhance/ui/component/drawerInput.ts
+  // Tmall-MySellerEnhance/ui/drawerInput.ts
   var DrawerInputManager = class {
     constructor() {
       __publicField(this, "inputElement", null);
@@ -1046,8 +1046,109 @@
     console.log("\n获取商品 ID 逻辑执行完成");
   }
 
+  // Tmall-MySellerEnhance/action/copyAllItemIds/copyAllItemIds.action.ts
+  function checkItemIdDisplayExists() {
+    const displays = document.querySelectorAll(".tmall-order-enhance-item-code");
+    return displays.length > 0;
+  }
+  function getAllItemIdsFromDOM() {
+    const itemIds = [];
+    const displays = document.querySelectorAll(".tmall-order-enhance-item-code-value");
+    displays.forEach((display) => {
+      const text = display.textContent?.trim();
+      if (text) {
+        itemIds.push(text);
+      }
+    });
+    return itemIds;
+  }
+  async function handleCopyAllItemIds() {
+    console.log("执行复制所有商品ID逻辑...");
+    const itemIdExists = checkItemIdDisplayExists();
+    if (!itemIdExists) {
+      console.log("商品ID展示不存在，先触发getItemId获取商品ID...");
+      await handleGetItemId();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    const itemIds = getAllItemIdsFromDOM();
+    if (itemIds.length === 0) {
+      console.warn("未获取到任何商品ID");
+      alert("未获取到商品ID，请确保页面有订单数据");
+      return;
+    }
+    console.log(`共获取到 ${itemIds.length} 个商品ID`);
+    const textToCopy = itemIds.join("\n");
+    const success = await copyToClipboard(textToCopy);
+    if (success) {
+      console.log("商品ID已复制到剪贴板");
+      alert(`已复制 ${itemIds.length} 个商品ID到剪贴板`);
+    } else {
+      console.error("复制到剪贴板失败");
+      alert("复制失败，请手动复制");
+    }
+  }
+
+  // Tmall-MySellerEnhance/action/copyUniqueItemIds/copyUniqueItemIds.action.ts
+  function checkItemIdDisplayExists2() {
+    const displays = document.querySelectorAll(".tmall-order-enhance-item-code");
+    return displays.length > 0;
+  }
+  function getAllItemIdsFromDOM2() {
+    const itemIds = [];
+    const displays = document.querySelectorAll(".tmall-order-enhance-item-code-value");
+    displays.forEach((display) => {
+      const text = display.textContent?.trim();
+      if (text) {
+        itemIds.push(text);
+      }
+    });
+    return itemIds;
+  }
+  function deduplicateItemIds(itemIds) {
+    return [...new Set(itemIds)];
+  }
+  async function handleCopyUniqueItemIds() {
+    console.log("执行复制去重商品ID逻辑...");
+    const itemIdExists = checkItemIdDisplayExists2();
+    if (!itemIdExists) {
+      console.log("商品ID展示不存在，先触发getItemId获取商品ID...");
+      await handleGetItemId();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    const itemIds = getAllItemIdsFromDOM2();
+    if (itemIds.length === 0) {
+      console.warn("未获取到任何商品ID");
+      alert("未获取到商品ID，请确保页面有订单数据");
+      return;
+    }
+    console.log(`获取到 ${itemIds.length} 个商品ID`);
+    const uniqueItemIds = deduplicateItemIds(itemIds);
+    console.log(`去重后剩余 ${uniqueItemIds.length} 个商品ID`);
+    const textToCopy = uniqueItemIds.join("\n");
+    const success = await copyToClipboard(textToCopy);
+    if (success) {
+      console.log("去重后的商品ID已复制到剪贴板");
+      alert(`已复制 ${uniqueItemIds.length} 个去重后的商品ID到剪贴板`);
+    } else {
+      console.error("复制到剪贴板失败");
+      alert("复制失败，请手动复制");
+    }
+  }
+
   // Tmall-MySellerEnhance/match/getItemId.match.ts
   function getItemIdMatch() {
+    const href = window.location.href;
+    return href.includes("trade-platform/tp/sold") || href.includes("trade-platform/tp/order");
+  }
+
+  // Tmall-MySellerEnhance/match/copyAllItemIds.match.ts
+  function copyAllItemIdsMatch() {
+    const href = window.location.href;
+    return href.includes("trade-platform/tp/sold") || href.includes("trade-platform/tp/order");
+  }
+
+  // Tmall-MySellerEnhance/match/copyUniqueItemIds.match.ts
+  function copyUniqueItemIdsMatch() {
     const href = window.location.href;
     return href.includes("trade-platform/tp/sold") || href.includes("trade-platform/tp/order");
   }
@@ -1061,6 +1162,22 @@
       onClick: handleGetItemId,
       // match 函数：从 match 目录导入
       match: getItemIdMatch
+    },
+    {
+      id: "copy-all-item-ids",
+      label: "复制所有商品ID",
+      icon: "📋",
+      onClick: handleCopyAllItemIds,
+      // match 函数：从 match 目录导入
+      match: copyAllItemIdsMatch
+    },
+    {
+      id: "copy-unique-item-ids",
+      label: "复制去重商品ID",
+      icon: "📝",
+      onClick: handleCopyUniqueItemIds,
+      // match 函数：从 match 目录导入
+      match: copyUniqueItemIdsMatch
     }
     // 后续可以在这里添加更多按钮配置
     // {

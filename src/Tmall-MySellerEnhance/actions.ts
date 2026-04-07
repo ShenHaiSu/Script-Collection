@@ -14,12 +14,16 @@ import type { ActionConfig } from "@/Tmall-MySellerEnhance/type";
 
 // 从 action 目录导入实际交互处理函数
 import { handleGetItemId } from "@/Tmall-MySellerEnhance/action/getItemId/getItemId.action";
+import { handleCopyAllItemIds } from "@/Tmall-MySellerEnhance/action/copyAllItemIds/copyAllItemIds.action";
+import { handleCopyUniqueItemIds } from "@/Tmall-MySellerEnhance/action/copyUniqueItemIds/copyUniqueItemIds.action";
 
 // 从 match 目录导入 match 函数
 import { getItemIdMatch } from "@/Tmall-MySellerEnhance/match/getItemId.match";
+import { copyAllItemIdsMatch } from "@/Tmall-MySellerEnhance/match/copyAllItemIds.match";
+import { copyUniqueItemIdsMatch } from "@/Tmall-MySellerEnhance/match/copyUniqueItemIds.match";
 
 // 重新导出供外部使用
-export { handleGetItemId };
+export { handleGetItemId, handleCopyAllItemIds, handleCopyUniqueItemIds };
 
 // 重新导出类型供外部使用
 export type { ActionConfig };
@@ -37,6 +41,22 @@ export const ACTION_BUTTONS: ActionConfig[] = [
     onClick: handleGetItemId,
     // match 函数：从 match 目录导入
     match: getItemIdMatch,
+  },
+  {
+    id: "copy-all-item-ids",
+    label: "复制所有商品ID",
+    icon: "📋",
+    onClick: handleCopyAllItemIds,
+    // match 函数：从 match 目录导入
+    match: copyAllItemIdsMatch,
+  },
+  {
+    id: "copy-unique-item-ids",
+    label: "复制去重商品ID",
+    icon: "📝",
+    onClick: handleCopyUniqueItemIds,
+    // match 函数：从 match 目录导入
+    match: copyUniqueItemIdsMatch,
   },
   // 后续可以在这里添加更多按钮配置
   // {

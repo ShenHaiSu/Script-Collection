@@ -8,7 +8,7 @@
  * 4. 支持快捷输入框快速触发按钮
  */
 import { STYLES } from "@/Tmall-MySellerEnhance/ui/styles";
-import { drawerInputManager } from "@/Tmall-MySellerEnhance/ui/component/drawerInput";
+import { drawerInputManager } from "@/Tmall-MySellerEnhance/ui/drawerInput";
 
 /**
  * 交互按钮配置项

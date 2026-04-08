@@ -16,14 +16,16 @@ import type { ActionConfig } from "@/Tmall-MySellerEnhance/type";
 import { handleGetItemId } from "@/Tmall-MySellerEnhance/action/getItemId/getItemId.action";
 import { handleCopyAllItemIds } from "@/Tmall-MySellerEnhance/action/copyAllItemIds/copyAllItemIds.action";
 import { handleCopyUniqueItemIds } from "@/Tmall-MySellerEnhance/action/copyUniqueItemIds/copyUniqueItemIds.action";
+import { handleGoodsListInfo } from "@/Tmall-MySellerEnhance/action/goodsListInfo/goodsListInfo.action";
 
 // 从 match 目录导入 match 函数
 import { getItemIdMatch } from "@/Tmall-MySellerEnhance/match/getItemId.match";
 import { copyAllItemIdsMatch } from "@/Tmall-MySellerEnhance/match/copyAllItemIds.match";
 import { copyUniqueItemIdsMatch } from "@/Tmall-MySellerEnhance/match/copyUniqueItemIds.match";
+import { goodsListInfoMatch } from "@/Tmall-MySellerEnhance/match/goodsListInfo.match";
 
 // 重新导出供外部使用
-export { handleGetItemId, handleCopyAllItemIds, handleCopyUniqueItemIds };
+export { handleGetItemId, handleCopyAllItemIds, handleCopyUniqueItemIds, handleGoodsListInfo };
 
 // 重新导出类型供外部使用
 export type { ActionConfig };
@@ -57,6 +59,14 @@ export const ACTION_BUTTONS: ActionConfig[] = [
     onClick: handleCopyUniqueItemIds,
     // match 函数：从 match 目录导入
     match: copyUniqueItemIdsMatch,
+  },
+  {
+    id: "goods-list-info",
+    label: "复制商品列表信息",
+    icon: "📋",
+    onClick: handleGoodsListInfo,
+    // match 函数：从 match 目录导入
+    match: goodsListInfoMatch,
   },
   // 后续可以在这里添加更多按钮配置
   // {

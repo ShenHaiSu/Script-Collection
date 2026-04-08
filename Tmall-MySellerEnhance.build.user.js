@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫后台订单信息增强
-// @version      2026.04.07.23.55.08
+// @version      2026.04.08.20.40.59
 // @description  增强千牛天猫后台的已卖出宝贝的订单信息，展示更多实用性的信息内容。
 // @author       DaoLuoLTS
 // @match        https://myseller.taobao.com/*
@@ -1135,6 +1135,155 @@
     }
   }
 
+  // Tmall-MySellerEnhance/action/goodsListInfo/goodsListInfo.action.ts
+  function extractGoodsDataFromTr(tr) {
+    try {
+      const tds = tr.querySelectorAll("td");
+      if (tds.length < 9) {
+        console.warn("td 数量不足，跳过该行");
+        return null;
+      }
+      const titleTd = tds[1];
+      const priceTd = tds[2];
+      const stockTd = tds[3];
+      const totalSalesTd = tds[4];
+      const thirtyDaySalesTd = tds[5];
+      const createTimeTd = tds[7];
+      const img = titleTd.querySelector("img.product-desc-extend-image");
+      const imageUrl = img?.src || "";
+      const idSpan = Array.from(titleTd.querySelectorAll("span")).find(
+        (span) => span.textContent && span.textContent.includes("ID:")
+      );
+      let itemId = "";
+      if (idSpan) {
+        const match = idSpan.textContent?.match(/ID:(\d+)/);
+        itemId = match ? match[1] : "";
+      }
+      const codeSpan = Array.from(titleTd.querySelectorAll("span")).find(
+        (span) => span.textContent && span.textContent.includes("编码:")
+      );
+      let itemCode = "";
+      if (codeSpan) {
+        const match = codeSpan.textContent?.match(/编码:(\d+)/);
+        itemCode = match ? match[1] : "";
+      }
+      const titleLink = titleTd.querySelector("a.title-link");
+      const title = titleLink?.textContent?.trim() || "";
+      const priceSpan = priceTd.querySelector(".price-value span");
+      const price = priceSpan?.textContent?.trim() || "";
+      const stockSpan = stockTd.querySelector(".quantity-item-label span.quantity");
+      const stock = stockSpan?.textContent?.trim() || "";
+      const totalSalesSpan = totalSalesTd.querySelector("span");
+      const totalSales = totalSalesSpan?.textContent?.trim() || "";
+      const thirtyDaySalesDiv = thirtyDaySalesTd.querySelector(".text-async-label");
+      const thirtyDaySales = thirtyDaySalesDiv?.textContent?.trim() || "";
+      const createTimeDiv = createTimeTd.querySelector(".product-desc-span");
+      const createTime = createTimeDiv?.textContent?.trim() || "";
+      return {
+        imageUrl,
+        itemId,
+        itemCode,
+        title,
+        price,
+        stock,
+        totalSales,
+        thirtyDaySales,
+        createTime
+      };
+    } catch (error) {
+      console.error("提取商品数据失败:", error);
+      return null;
+    }
+  }
+  function collectGoodsListData() {
+    const table = document.querySelector('table[role="table"]');
+    if (!table) {
+      console.warn('未找到 table[role="table"]');
+      return [];
+    }
+    const tbody = table.querySelector("tbody");
+    if (!tbody) {
+      console.warn("未找到 tbody");
+      return [];
+    }
+    const rows = tbody.querySelectorAll("tr");
+    console.log(`找到 ${rows.length} 个 tr`);
+    const goodsList = [];
+    rows.forEach((tr, index) => {
+      if (tr.classList.contains("next-table-header")) {
+        console.log(`跳过表头行 ${index}`);
+        return;
+      }
+      const goodsData = extractGoodsDataFromTr(tr);
+      if (goodsData) {
+        goodsList.push(goodsData);
+        console.log(`采集到商品 ${index}:`, goodsData.title);
+      }
+    });
+    return goodsList;
+  }
+  function buildTextTable(goodsList) {
+    const header = ["商品图片", "商品ID", "商家编码", "商品标题", "价格", "库存", "累计销量", "30日销量", "创建时间"];
+    let tableText = header.join("	") + "\n";
+    goodsList.forEach((item) => {
+      const row = [
+        item.imageUrl ? `<img src="${item.imageUrl}">` : "",
+        item.itemId,
+        item.itemCode,
+        item.title,
+        item.price,
+        item.stock,
+        item.totalSales,
+        item.thirtyDaySales,
+        item.createTime
+      ];
+      tableText += row.join("	") + "\n";
+    });
+    return tableText;
+  }
+  async function handleGoodsListInfo() {
+    console.log("执行商品列表信息增强逻辑...");
+    const table = document.querySelector('table[role="table"]');
+    if (!table) {
+      console.warn('未找到 table[role="table"]');
+      alert("未找到商品列表表格，请确保在商品列表页面");
+      return;
+    }
+    const tbody = table.querySelector("tbody");
+    if (!tbody) {
+      console.warn("未找到 tbody");
+      alert("未找到商品列表数据，请确保在商品列表页面");
+      return;
+    }
+    const rows = tbody.querySelectorAll("tr");
+    const dataRows = Array.from(rows).filter(
+      (tr) => !tr.classList.contains("next-table-header") && tr.querySelectorAll("td").length >= 8
+    );
+    if (dataRows.length === 0) {
+      console.log("当前页面没有商品数据");
+      alert("当前页面没有商品数据");
+      return;
+    }
+    console.log(`共有 ${dataRows.length} 条商品数据`);
+    const goodsList = collectGoodsListData();
+    console.log(`采集到 ${goodsList.length} 条商品数据`);
+    if (goodsList.length === 0) {
+      console.warn("未能采集到任何商品数据");
+      alert("未能采集到商品数据");
+      return;
+    }
+    const tableText = buildTextTable(goodsList);
+    console.log("生成的表格文本:", tableText);
+    const success = await copyToClipboard(tableText);
+    if (success) {
+      console.log("已成功复制到剪贴板");
+      alert(`已成功复制 ${goodsList.length} 条商品数据到剪贴板`);
+    } else {
+      console.error("复制到剪贴板失败");
+      alert("复制到剪贴板失败，请手动复制");
+    }
+  }
+
   // Tmall-MySellerEnhance/match/getItemId.match.ts
   function getItemIdMatch() {
     const href = window.location.href;
@@ -1151,6 +1300,13 @@
   function copyUniqueItemIdsMatch() {
     const href = window.location.href;
     return href.includes("trade-platform/tp/sold") || href.includes("trade-platform/tp/order");
+  }
+
+  // Tmall-MySellerEnhance/match/goodsListInfo.match.ts
+  function goodsListInfoMatch() {
+    const href = window.location.href;
+    const matchPattern = /home\.htm\/SellManage\/[^?]*\?/;
+    return matchPattern.test(href);
   }
 
   // Tmall-MySellerEnhance/actions.ts
@@ -1178,6 +1334,14 @@
       onClick: handleCopyUniqueItemIds,
       // match 函数：从 match 目录导入
       match: copyUniqueItemIdsMatch
+    },
+    {
+      id: "goods-list-info",
+      label: "复制商品列表信息",
+      icon: "📋",
+      onClick: handleGoodsListInfo,
+      // match 函数：从 match 目录导入
+      match: goodsListInfoMatch
     }
     // 后续可以在这里添加更多按钮配置
     // {

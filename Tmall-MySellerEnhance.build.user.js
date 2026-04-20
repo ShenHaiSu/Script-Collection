@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫后台订单信息增强
-// @version      2026.04.20.22.34.42
+// @version      2026.04.20.23.09.57
 // @description  增强千牛天猫后台的已卖出宝贝的订单信息，展示更多实用性的信息内容。
 // @author       DaoLuoLTS
 // @match        https://myseller.taobao.com/*
@@ -1546,6 +1546,164 @@ ${rows.join("\n")}
     };
     return { overlay, updateProgress, cancelTask, isCancelled: () => isCancelled };
   }
+  function createDualProgressOverlay() {
+    const overlay = document.createElement("div");
+    overlay.id = "sell-try-info-overlay";
+    Object.assign(overlay.style, {
+      position: "fixed",
+      top: "0",
+      left: "0",
+      width: "100vw",
+      height: "100vh",
+      backgroundColor: "rgba(0, 0, 0, 0.7)",
+      zIndex: "9999",
+      cursor: "not-allowed",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+    });
+    const content = document.createElement("div");
+    Object.assign(content.style, {
+      textAlign: "center",
+      color: "#fff",
+      padding: "30px 40px",
+      background: "rgba(0, 0, 0, 0.5)",
+      borderRadius: "12px",
+      backdropFilter: "blur(10px)",
+      maxWidth: "450px"
+    });
+    const title = document.createElement("div");
+    Object.assign(title.style, {
+      fontSize: "20px",
+      fontWeight: "600",
+      marginBottom: "20px"
+    });
+    title.textContent = "正在采集商品信息...";
+    const pageLabel = document.createElement("div");
+    Object.assign(pageLabel.style, {
+      fontSize: "14px",
+      color: "rgba(255, 255, 255, 0.9)",
+      marginBottom: "6px",
+      textAlign: "left",
+      width: "300px"
+    });
+    pageLabel.textContent = "页面进度";
+    const pageProgressContainer = document.createElement("div");
+    Object.assign(pageProgressContainer.style, {
+      width: "300px",
+      height: "10px",
+      background: "rgba(255, 255, 255, 0.2)",
+      borderRadius: "5px",
+      overflow: "hidden",
+      marginBottom: "16px"
+    });
+    const pageProgressBar = document.createElement("div");
+    Object.assign(pageProgressBar.style, {
+      height: "100%",
+      width: "0%",
+      background: "linear-gradient(90deg, #722ed1, #9254de)",
+      borderRadius: "5px",
+      transition: "width 0.3s ease"
+    });
+    pageProgressContainer.appendChild(pageProgressBar);
+    const itemLabel = document.createElement("div");
+    Object.assign(itemLabel.style, {
+      fontSize: "14px",
+      color: "rgba(255, 255, 255, 0.9)",
+      marginBottom: "6px",
+      textAlign: "left",
+      width: "300px"
+    });
+    itemLabel.textContent = "当前页进度";
+    const itemProgressContainer = document.createElement("div");
+    Object.assign(itemProgressContainer.style, {
+      width: "300px",
+      height: "10px",
+      background: "rgba(255, 255, 255, 0.2)",
+      borderRadius: "5px",
+      overflow: "hidden",
+      marginBottom: "16px"
+    });
+    const itemProgressBar = document.createElement("div");
+    Object.assign(itemProgressBar.style, {
+      height: "100%",
+      width: "0%",
+      background: "linear-gradient(90deg, #1890ff, #52c41a)",
+      borderRadius: "5px",
+      transition: "width 0.3s ease"
+    });
+    itemProgressContainer.appendChild(itemProgressBar);
+    const statusText = document.createElement("div");
+    Object.assign(statusText.style, {
+      fontSize: "12px",
+      color: "rgba(255, 255, 255, 0.6)",
+      marginTop: "8px"
+    });
+    const buttonContainer = document.createElement("div");
+    Object.assign(buttonContainer.style, {
+      display: "flex",
+      justifyContent: "center",
+      gap: "12px",
+      marginTop: "20px"
+    });
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "取消采集";
+    Object.assign(cancelBtn.style, {
+      padding: "8px 20px",
+      cursor: "pointer",
+      backgroundColor: "#ff4d4f",
+      color: "#fff",
+      border: "none",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: "500",
+      transition: "all 0.2s ease",
+      boxShadow: "0 2px 8px rgba(255, 77, 79, 0.3)"
+    });
+    cancelBtn.onmouseenter = () => {
+      cancelBtn.style.backgroundColor = "#ff7875";
+      cancelBtn.style.transform = "translateY(-1px)";
+    };
+    cancelBtn.onmouseleave = () => {
+      cancelBtn.style.backgroundColor = "#ff4d4f";
+      cancelBtn.style.transform = "translateY(0)";
+    };
+    buttonContainer.appendChild(cancelBtn);
+    content.appendChild(title);
+    content.appendChild(pageLabel);
+    content.appendChild(pageProgressContainer);
+    content.appendChild(itemLabel);
+    content.appendChild(itemProgressContainer);
+    content.appendChild(statusText);
+    content.appendChild(buttonContainer);
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+    let isCancelled = false;
+    const updateProgress = (pageCurrent, pageTotal, itemCurrent, itemTotal, message) => {
+      const pagePercentage = pageTotal > 0 ? Math.round(pageCurrent / pageTotal * 100) : 0;
+      pageProgressBar.style.width = `${pagePercentage}%`;
+      pageLabel.textContent = `页面进度: ${pageCurrent} / ${pageTotal} (${pagePercentage}%)`;
+      const itemPercentage = itemTotal > 0 ? Math.round(itemCurrent / itemTotal * 100) : 0;
+      itemProgressBar.style.width = `${itemPercentage}%`;
+      itemLabel.textContent = `当前页进度: ${itemCurrent} / ${itemTotal} (${itemPercentage}%)`;
+      statusText.textContent = message;
+      title.textContent = pageCurrent >= pageTotal && itemCurrent >= itemTotal ? "采集完成!" : "正在采集商品信息...";
+    };
+    const cancelTask = () => {
+      isCancelled = true;
+      cancelBtn.textContent = "已取消";
+      cancelBtn.disabled = true;
+      cancelBtn.style.backgroundColor = "#999";
+      cancelBtn.style.cursor = "not-allowed";
+      statusText.textContent = "正在取消...";
+    };
+    cancelBtn.onclick = () => {
+      cancelTask();
+    };
+    return { overlay, updateProgress, cancelTask, isCancelled: () => isCancelled };
+  }
   function showResultsTable(results) {
     const modal = document.createElement("div");
     modal.id = "sell-try-info-results-modal";
@@ -1882,10 +2040,75 @@ ${rows.join("\n")}
     shareTab: "div.tbd-tabs-nav-wrap div[data-node-key='item']",
     // 抽屉弹窗
     drawerContent: "div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div",
-    drawerButtons: "div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div > button"
+    drawerButtons: "div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div > button",
+    // 分页器
+    pagination: "ul.tbd-pagination",
+    paginationNext: "li.tbd-pagination-next",
+    paginationNextDisabled: "li.tbd-pagination-next.tbd-pagination-disabled",
+    paginationItem: "li.tbd-pagination-item",
+    paginationItemActive: "li.tbd-pagination-item-active"
   };
   var BUTTON_CLICK_DELAY = 800;
   var DRAWER_OPEN_DELAY = 1e3;
+  var PAGE_LOAD_DELAY = 1500;
+  function getPaginationInfo() {
+    const pagination = document.querySelector(SELECTORS.pagination);
+    if (!pagination) {
+      console.warn("未找到分页器");
+      return { currentPage: 1, totalPages: 1, hasNextPage: false };
+    }
+    const activeItem = pagination.querySelector(SELECTORS.paginationItemActive);
+    const currentPage = activeItem ? parseInt(activeItem.textContent?.trim() || "1", 10) : 1;
+    const pageItems = Array.from(pagination.querySelectorAll(SELECTORS.paginationItem));
+    const pageNumbers = pageItems.map((item) => {
+      const text = item.textContent?.trim();
+      const num = parseInt(text || "0", 10);
+      return num > 0 ? num : 0;
+    }).filter((num) => num > 0);
+    const totalPages = pageNumbers.length > 0 ? Math.max(...pageNumbers) : 1;
+    const nextButton = pagination.querySelector(SELECTORS.paginationNextDisabled);
+    const hasNextPage = !nextButton;
+    console.log(`分页信息: 当前第${currentPage}页, 共${totalPages}页, 是否有下一页: ${hasNextPage}`);
+    return { currentPage, totalPages, hasNextPage };
+  }
+  async function clickNextPage() {
+    const pagination = document.querySelector(SELECTORS.pagination);
+    if (!pagination) {
+      console.warn("未找到分页器");
+      return false;
+    }
+    const nextButton = pagination.querySelector(
+      `${SELECTORS.paginationNext}:not(.tbd-pagination-disabled) button`
+    );
+    if (!nextButton) {
+      console.warn("未找到可点击的下一页按钮");
+      return false;
+    }
+    try {
+      nextButton.click();
+      await sleep(PAGE_LOAD_DELAY);
+      return true;
+    } catch (error) {
+      console.error("点击下一页失败:", error);
+      return false;
+    }
+  }
+  async function waitForPageLoad() {
+    await sleep(PAGE_LOAD_DELAY);
+    try {
+      getTableRows();
+      return true;
+    } catch {
+      console.warn("页面数据未加载完成，重试中...");
+      await sleep(PAGE_LOAD_DELAY);
+      try {
+        getTableRows();
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  }
   var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   function trim(str) {
     return str?.trim() ?? "";
@@ -2001,9 +2224,36 @@ ${rows.join("\n")}
     await sleep(DRAWER_OPEN_DELAY);
   }
   async function handleSellTryInfo() {
-    const { overlay, updateProgress, isCancelled } = createProgressOverlay();
+    const paginationInfo = getPaginationInfo();
+    const { currentPage, totalPages, hasNextPage } = paginationInfo;
+    let pagesToFetch = 0;
+    if (hasNextPage || totalPages > 1) {
+      const remainingPages = totalPages - currentPage;
+      const input = prompt(
+        `当前第 ${currentPage} 页，共 ${totalPages} 页。
+后续还有 ${remainingPages} 页需要获取。
+
+请输入要向后获取的页数（不输入或输入0则仅获取当前页，输入1为获取两页）:`
+      );
+      pagesToFetch = parseInt(input || "0", 10);
+      if (isNaN(pagesToFetch) || pagesToFetch < 0) pagesToFetch = 0;
+      if (pagesToFetch > remainingPages) pagesToFetch = remainingPages;
+    }
+    const totalPagesToFetch = pagesToFetch + 1;
+    const useDualProgress = pagesToFetch > 0;
+    const { overlay, updateProgress, isCancelled } = useDualProgress ? createDualProgressOverlay() : createProgressOverlay();
     try {
-      updateProgress(0, 0, "正在请求剪切板权限...");
+      if (useDualProgress) {
+        updateProgress(
+          0,
+          totalPagesToFetch,
+          0,
+          1,
+          "正在请求剪切板权限..."
+        );
+      } else {
+        updateProgress(0, 0, "正在请求剪切板权限...");
+      }
       if (!await ensureClipboardPermission()) {
         overlay.remove();
         return;
@@ -2012,20 +2262,10 @@ ${rows.join("\n")}
         overlay.remove();
         return;
       }
-      let tableRows;
-      try {
-        updateProgress(0, 0, "正在获取表格数据...");
-        tableRows = getTableRows();
-      } catch (error) {
-        console.error("获取表格数据失败:", error);
-        alert(error instanceof Error ? error.message : "获取表格数据失败");
-        overlay.remove();
-        return;
-      }
       dataStore.clear();
       let successCount = 0;
-      const total = tableRows.length;
-      for (let i = 0; i < tableRows.length; i++) {
+      let currentPageNum = currentPage;
+      for (let pageIndex = 0; pageIndex < totalPagesToFetch; pageIndex++) {
         if (isCancelled()) {
           console.log("用户取消了采集任务");
           try {
@@ -2035,61 +2275,129 @@ ${rows.join("\n")}
           overlay.remove();
           return;
         }
-        const tr = tableRows[i];
-        updateProgress(i, total, `正在处理第 ${i + 1} 个商品...`);
+        let tableRows;
         try {
-          const itemInfo = extractItemInfoFromRow(tr);
-          if (!itemInfo) {
-            console.warn("跳过无效商品行");
-            continue;
+          if (useDualProgress) {
+            updateProgress(
+              pageIndex + 1,
+              totalPagesToFetch,
+              0,
+              1,
+              "正在获取表格数据..."
+            );
+          } else {
+            updateProgress(0, 1, "正在获取表格数据...");
           }
-          const actionButton = getActionButtonFromRow(tr);
-          if (!await safeClickButton(actionButton, 1e3)) {
-            console.warn("无法打开商品详情抽屉，跳过此项");
-            continue;
-          }
-          await waitForDrawerOpen();
-          if (!await switchToShareTab()) {
-            console.warn("切换分享 tab 失败，尝试继续处理");
-          }
-          if (!await clickGenerateTokenButton()) {
-            console.warn("生成口令失败，尝试继续处理");
-          }
-          itemInfo.text = await readFromClipboard();
-          if (!itemInfo.text) console.warn("采集到的分享链接为空，但仍记录数据");
-          const duplicateIndex = dataStore.findIndex(itemInfo.text);
-          if (duplicateIndex !== -1) {
-            const errorMsg = `检测到重复分享链接！当前第 ${i + 1} 个TR的分享链接与第 ${duplicateIndex + 1} 个TR的分享链接重复。`;
-            console.error(errorMsg);
-            await closeDrawer();
-            const failData = {
-              失败位置: `第 ${i + 1} 个TR`,
-              重试次数: 1,
-              商品ID: itemInfo.itemId,
-              商品名称: itemInfo.itemName,
-              分享链接: itemInfo.text,
-              重复链接位置: `第 ${duplicateIndex + 1} 个TR`
-            };
-            console.error("解析失效数据:", failData);
-            alert(`解析失效：在第 ${i + 1} 个TR发生解析失效问题，已重试 1 次仍存在重复。
-
-详细数据：
-${JSON.stringify(failData, null, 2)}`);
-            throw new Error(`解析失效：在第 ${i + 1} 个TR发生解析失效问题`);
-          }
-          dataStore.add(itemInfo);
-          console.log(`已采集商品：${itemInfo.itemId} - ${itemInfo.itemName}`);
-          successCount++;
-          updateProgress(i + 1, total, `已处理: ${tr.getAttribute("data-row-key") || "未知商品"}`);
-          if (!await closeDrawer()) console.warn("关闭抽屉失败，可能影响后续操作");
+          tableRows = getTableRows();
         } catch (error) {
-          console.error(`处理商品行时发生错误:`, error, tr);
+          console.error("获取表格数据失败:", error);
+          alert(error instanceof Error ? error.message : "获取表格数据失败");
           overlay.remove();
           return;
         }
+        const totalItems = tableRows.length;
+        for (let i = 0; i < tableRows.length; i++) {
+          if (isCancelled()) {
+            console.log("用户取消了采集任务");
+            try {
+              await closeDrawer();
+            } catch {
+            }
+            overlay.remove();
+            return;
+          }
+          const tr = tableRows[i];
+          if (useDualProgress) {
+            updateProgress(
+              pageIndex + 1,
+              totalPagesToFetch,
+              i + 1,
+              totalItems,
+              `正在处理第 ${pageIndex + 1} 页第 ${i + 1} 个商品...`
+            );
+          } else {
+            updateProgress(i, totalItems, `正在处理第 ${i + 1} 个商品...`);
+          }
+          try {
+            const itemInfo = extractItemInfoFromRow(tr);
+            if (!itemInfo) {
+              console.warn("跳过无效商品行");
+              continue;
+            }
+            const actionButton = getActionButtonFromRow(tr);
+            if (!await safeClickButton(actionButton, 1e3)) {
+              console.warn("无法打开商品详情抽屉，跳过此项");
+              continue;
+            }
+            await waitForDrawerOpen();
+            if (!await switchToShareTab()) {
+              console.warn("切换分享 tab 失败，尝试继续处理");
+            }
+            if (!await clickGenerateTokenButton()) {
+              console.warn("生成口令失败，尝试继续处理");
+            }
+            itemInfo.text = await readFromClipboard();
+            if (!itemInfo.text) console.warn("采集到的分享链接为空，但仍记录数据");
+            const duplicateIndex = dataStore.findIndex(itemInfo.text);
+            if (duplicateIndex !== -1) {
+              const errorMsg = `检测到重复分享链接！当前第 ${pageIndex + 1} 页第 ${i + 1} 个TR的分享链接与第 ${duplicateIndex + 1} 个TR的分享链接重复。`;
+              console.error(errorMsg);
+              await closeDrawer();
+              const failData = {
+                失败位置: `第 ${pageIndex + 1} 页第 ${i + 1} 个TR`,
+                重试次数: 1,
+                商品ID: itemInfo.itemId,
+                商品名称: itemInfo.itemName,
+                分享链接: itemInfo.text,
+                重复链接位置: `第 ${duplicateIndex + 1} 个TR`
+              };
+              console.error("解析失效数据:", failData);
+              alert(`解析失效：在第 ${pageIndex + 1} 页第 ${i + 1} 个TR发生解析失效问题，已重试 1 次仍存在重复。
+
+详细数据：
+${JSON.stringify(failData, null, 2)}`);
+              throw new Error(`解析失效：在第 ${pageIndex + 1} 页第 ${i + 1} 个TR发生解析失效问题`);
+            }
+            dataStore.add(itemInfo);
+            console.log(`已采集商品：${itemInfo.itemId} - ${itemInfo.itemName}`);
+            successCount++;
+            if (useDualProgress) {
+              updateProgress(
+                pageIndex + 1,
+                totalPagesToFetch,
+                i + 1,
+                totalItems,
+                `已处理: ${tr.getAttribute("data-row-key") || "未知商品"}`
+              );
+            } else {
+              updateProgress(
+                i + 1,
+                totalItems,
+                `已处理: ${tr.getAttribute("data-row-key") || "未知商品"}`
+              );
+            }
+            if (!await closeDrawer()) console.warn("关闭抽屉失败，可能影响后续操作");
+          } catch (error) {
+            console.error(`处理商品行时发生错误:`, error, tr);
+            overlay.remove();
+            return;
+          }
+        }
+        if (pageIndex < totalPagesToFetch - 1) {
+          console.log(`正在跳转到第 ${pageIndex + 2} 页...`);
+          if (!await clickNextPage()) {
+            console.warn("翻页失败，停止采集");
+            break;
+          }
+          if (!await waitForPageLoad()) {
+            console.warn("页面加载失败，停止采集");
+            break;
+          }
+          currentPageNum++;
+        }
       }
       const allResults = dataStore.getAll();
-      console.log(`采集完成，成功 ${successCount}/${tableRows.length} 条`);
+      console.log(`采集完成，成功 ${successCount} 条`);
       console.log("获取到的所有信息：", allResults);
       if (allResults.length === 0) {
         alert("未采集到任何数据，请查看控制台日志。");

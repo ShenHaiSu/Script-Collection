@@ -16,7 +16,7 @@
  * 8. 显示采集结果表格
  */
 
-import { showResultsTable, createProgressOverlay } from "@/Tmall-MySellerEnhance/ui/component/sellTryShareCatch.ui";
+import { showResultsTable, createProgressOverlay, createDualProgressOverlay } from "@/Tmall-MySellerEnhance/ui/component/sellTryShareCatch.ui";
 import type { SellTryInfoResult } from "@/Tmall-MySellerEnhance/ui/component/sellTryShareCatch.ui";
 
 /**
@@ -71,11 +71,107 @@ const SELECTORS = {
   // 抽屉弹窗
   drawerContent: "div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div",
   drawerButtons: "div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div > button",
+
+  // 分页器
+  pagination: "ul.tbd-pagination",
+  paginationNext: "li.tbd-pagination-next",
+  paginationNextDisabled: "li.tbd-pagination-next.tbd-pagination-disabled",
+  paginationItem: "li.tbd-pagination-item",
+  paginationItemActive: "li.tbd-pagination-item-active",
 } as const;
 
 // 延迟配置
 const BUTTON_CLICK_DELAY = 800;
 const DRAWER_OPEN_DELAY = 1000;
+const PAGE_LOAD_DELAY = 1500;
+// #endregion
+
+// #region 分页相关函数
+/**
+ * 获取分页器信息
+ */
+function getPaginationInfo(): { currentPage: number; totalPages: number; hasNextPage: boolean } {
+  const pagination = document.querySelector<HTMLUListElement>(SELECTORS.pagination);
+  if (!pagination) {
+    console.warn("未找到分页器");
+    return { currentPage: 1, totalPages: 1, hasNextPage: false };
+  }
+
+  // 获取当前页码
+  const activeItem = pagination.querySelector<HTMLLIElement>(SELECTORS.paginationItemActive);
+  const currentPage = activeItem ? parseInt(activeItem.textContent?.trim() || "1", 10) : 1;
+
+  // 获取所有页码项
+  const pageItems = Array.from(pagination.querySelectorAll<HTMLLIElement>(SELECTORS.paginationItem));
+  const pageNumbers = pageItems
+    .map((item) => {
+      const text = item.textContent?.trim();
+      const num = parseInt(text || "0", 10);
+      return num > 0 ? num : 0;
+    })
+    .filter((num) => num > 0);
+
+  const totalPages = pageNumbers.length > 0 ? Math.max(...pageNumbers) : 1;
+
+  // 检查是否有下一页
+  const nextButton = pagination.querySelector<HTMLLIElement>(SELECTORS.paginationNextDisabled);
+  const hasNextPage = !nextButton;
+
+  console.log(`分页信息: 当前第${currentPage}页, 共${totalPages}页, 是否有下一页: ${hasNextPage}`);
+
+  return { currentPage, totalPages, hasNextPage };
+}
+
+/**
+ * 点击下一页按钮
+ */
+async function clickNextPage(): Promise<boolean> {
+  const pagination = document.querySelector<HTMLUListElement>(SELECTORS.pagination);
+  if (!pagination) {
+    console.warn("未找到分页器");
+    return false;
+  }
+
+  // 查找下一页按钮（未禁用的）
+  const nextButton = pagination.querySelector<HTMLButtonElement>(
+    `${SELECTORS.paginationNext}:not(.tbd-pagination-disabled) button`
+  );
+
+  if (!nextButton) {
+    console.warn("未找到可点击的下一页按钮");
+    return false;
+  }
+
+  try {
+    nextButton.click();
+    await sleep(PAGE_LOAD_DELAY);
+    return true;
+  } catch (error) {
+    console.error("点击下一页失败:", error);
+    return false;
+  }
+}
+
+/**
+ * 等待页面数据加载完成
+ */
+async function waitForPageLoad(): Promise<boolean> {
+  await sleep(PAGE_LOAD_DELAY);
+  // 验证表格数据是否加载完成
+  try {
+    getTableRows();
+    return true;
+  } catch {
+    console.warn("页面数据未加载完成，重试中...");
+    await sleep(PAGE_LOAD_DELAY);
+    try {
+      getTableRows();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
 // #endregion
 
 // #region 工具函数
@@ -265,15 +361,46 @@ async function waitForDrawerOpen(): Promise<void> {
 
 /**
  * 处理"获取本页信息"按钮点击事件
- * 执行商品信息采集的完整流程
+ * 执行商品信息采集的完整流程（支持多页采集）
  */
 export async function handleSellTryInfo(): Promise<void> {
-  // 使用 UI 组件创建进度遮罩层
-  const { overlay, updateProgress, isCancelled } = createProgressOverlay();
+  // 1. 首先分析分页信息
+  const paginationInfo = getPaginationInfo();
+  const { currentPage, totalPages, hasNextPage } = paginationInfo;
+
+  // 计算需要获取的页数
+  let pagesToFetch = 0;
+  if (hasNextPage || totalPages > 1) {
+    // 有后续页面，询问用户
+    const remainingPages = totalPages - currentPage;
+    const input = prompt(
+      `当前第 ${currentPage} 页，共 ${totalPages} 页。\n` +
+      `后续还有 ${remainingPages} 页需要获取。\n\n` +
+      `请输入要向后获取的页数（不输入或输入0则仅获取当前页，输入1为获取两页）:`
+    );
+    pagesToFetch = parseInt(input || "0", 10);
+    if (isNaN(pagesToFetch) || pagesToFetch < 0) pagesToFetch = 0;
+    // 限制最大页数不超过剩余页数
+    if (pagesToFetch > remainingPages) pagesToFetch = remainingPages;
+  }
+
+  const totalPagesToFetch = pagesToFetch + 1; // 包含当前页
+
+  // 2. 根据是否需要多页选择不同的进度遮罩层
+  const useDualProgress = pagesToFetch > 0;
+  const { overlay, updateProgress, isCancelled } = useDualProgress
+    ? createDualProgressOverlay()
+    : createProgressOverlay();
 
   try {
-    // 1. 确保有剪切板访问权限
-    updateProgress(0, 0, "正在请求剪切板权限...");
+    // 3. 确保有剪切板访问权限
+    if (useDualProgress) {
+      (updateProgress as (pc: number, pt: number, ic: number, it: number, m: string) => void)(
+        0, totalPagesToFetch, 0, 1, "正在请求剪切板权限..."
+      );
+    } else {
+      (updateProgress as (c: number, t: number, m: string) => void)(0, 0, "正在请求剪切板权限...");
+    }
     if (!(await ensureClipboardPermission())) {
       overlay.remove();
       return;
@@ -285,30 +412,17 @@ export async function handleSellTryInfo(): Promise<void> {
       return;
     }
 
-    // 2. 获取表格行数据
-    let tableRows: HTMLTableRowElement[];
-    try {
-      updateProgress(0, 0, "正在获取表格数据...");
-      tableRows = getTableRows();
-    } catch (error) {
-      console.error("获取表格数据失败:", error);
-      alert(error instanceof Error ? error.message : "获取表格数据失败");
-      overlay.remove();
-      return;
-    }
-
-    // 3. 清空之前的采集数据
+    // 4. 清空之前的采集数据
     dataStore.clear();
 
-    // 4. 逐个处理商品行
+    // 5. 逐页处理
     let successCount = 0;
-    const total = tableRows.length;
+    let currentPageNum = currentPage;
 
-    for (let i = 0; i < tableRows.length; i++) {
+    for (let pageIndex = 0; pageIndex < totalPagesToFetch; pageIndex++) {
       // 检查是否已取消
       if (isCancelled()) {
         console.log("用户取消了采集任务");
-        // 尝试关闭可能打开的抽屉
         try {
           await closeDrawer();
         } catch {
@@ -318,87 +432,164 @@ export async function handleSellTryInfo(): Promise<void> {
         return;
       }
 
-      const tr = tableRows[i];
-      updateProgress(i, total, `正在处理第 ${i + 1} 个商品...`);
-
+      // 获取当前页的表格数据
+      let tableRows: HTMLTableRowElement[];
       try {
-        // 提取商品基础信息
-        const itemInfo = extractItemInfoFromRow(tr);
-        if (!itemInfo) {
-          console.warn("跳过无效商品行");
-          continue;
+        if (useDualProgress) {
+          (updateProgress as (pc: number, pt: number, ic: number, it: number, m: string) => void)(
+            pageIndex + 1, totalPagesToFetch, 0, 1, "正在获取表格数据..."
+          );
+        } else {
+          (updateProgress as (c: number, t: number, m: string) => void)(0, 1, "正在获取表格数据...");
         }
-
-        // 获取并点击操作按钮，打开详情抽屉
-        const actionButton = getActionButtonFromRow(tr);
-        if (!(await safeClickButton(actionButton, 1000))) {
-          console.warn("无法打开商品详情抽屉，跳过此项");
-          continue;
-        }
-
-        // 等待抽屉打开
-        await waitForDrawerOpen();
-
-        // 切换到分享 tab
-        if (!(await switchToShareTab())) {
-          console.warn("切换分享 tab 失败，尝试继续处理");
-        }
-
-        // 点击生成口令按钮
-        if (!(await clickGenerateTokenButton())) {
-          console.warn("生成口令失败，尝试继续处理");
-        }
-
-        // 读取剪切板中的分享链接
-        itemInfo.text = await readFromClipboard();
-
-        // 验证数据完整性
-        if (!itemInfo.text) console.warn("采集到的分享链接为空，但仍记录数据");
-
-        // 检查重复（从末尾向前比较）
-        const duplicateIndex = dataStore.findIndex(itemInfo.text);
-        if (duplicateIndex !== -1) {
-          const errorMsg = `检测到重复分享链接！当前第 ${i + 1} 个TR的分享链接与第 ${duplicateIndex + 1} 个TR的分享链接重复。`;
-          console.error(errorMsg);
-
-          // 关闭当前抽屉
-          await closeDrawer();
-
-          // 抛出解析错误
-          const failData = {
-            失败位置: `第 ${i + 1} 个TR`,
-            重试次数: 1,
-            商品ID: itemInfo.itemId,
-            商品名称: itemInfo.itemName,
-            分享链接: itemInfo.text,
-            重复链接位置: `第 ${duplicateIndex + 1} 个TR`,
-          };
-          console.error("解析失效数据:", failData);
-          alert(`解析失效：在第 ${i + 1} 个TR发生解析失效问题，已重试 1 次仍存在重复。\n\n详细数据：\n${JSON.stringify(failData, null, 2)}`);
-          throw new Error(`解析失效：在第 ${i + 1} 个TR发生解析失效问题`);
-        }
-
-        // 存储采集结果
-        dataStore.add(itemInfo);
-        console.log(`已采集商品：${itemInfo.itemId} - ${itemInfo.itemName}`);
-        successCount++;
-
-        // 更新进度
-        updateProgress(i + 1, total, `已处理: ${tr.getAttribute("data-row-key") || "未知商品"}`);
-
-        // 关闭抽屉，准备处理下一项
-        if (!(await closeDrawer())) console.warn("关闭抽屉失败，可能影响后续操作");
+        tableRows = getTableRows();
       } catch (error) {
-        console.error(`处理商品行时发生错误:`, error, tr);
-        // 解析失效时中断整个流程
+        console.error("获取表格数据失败:", error);
+        alert(error instanceof Error ? error.message : "获取表格数据失败");
         overlay.remove();
         return;
       }
+
+      const totalItems = tableRows.length;
+
+      // 6. 逐个处理当前页的商品行
+      for (let i = 0; i < tableRows.length; i++) {
+        // 检查是否已取消
+        if (isCancelled()) {
+          console.log("用户取消了采集任务");
+          try {
+            await closeDrawer();
+          } catch {
+            // 忽略关闭抽屉的错误
+          }
+          overlay.remove();
+          return;
+        }
+
+        const tr = tableRows[i];
+
+        // 更新进度（双进度条或单进度条）
+        if (useDualProgress) {
+          (updateProgress as (pc: number, pt: number, ic: number, it: number, m: string) => void)(
+            pageIndex + 1,
+            totalPagesToFetch,
+            i + 1,
+            totalItems,
+            `正在处理第 ${pageIndex + 1} 页第 ${i + 1} 个商品...`
+          );
+        } else {
+          (updateProgress as (c: number, t: number, m: string) => void)(i, totalItems, `正在处理第 ${i + 1} 个商品...`);
+        }
+
+        try {
+          // 提取商品基础信息
+          const itemInfo = extractItemInfoFromRow(tr);
+          if (!itemInfo) {
+            console.warn("跳过无效商品行");
+            continue;
+          }
+
+          // 获取并点击操作按钮，打开详情抽屉
+          const actionButton = getActionButtonFromRow(tr);
+          if (!(await safeClickButton(actionButton, 1000))) {
+            console.warn("无法打开商品详情抽屉，跳过此项");
+            continue;
+          }
+
+          // 等待抽屉打开
+          await waitForDrawerOpen();
+
+          // 切换到分享 tab
+          if (!(await switchToShareTab())) {
+            console.warn("切换分享 tab 失败，尝试继续处理");
+          }
+
+          // 点击生成口令按钮
+          if (!(await clickGenerateTokenButton())) {
+            console.warn("生成口令失败，尝试继续处理");
+          }
+
+          // 读取剪切板中的分享链接
+          itemInfo.text = await readFromClipboard();
+
+          // 验证数据完整性
+          if (!itemInfo.text) console.warn("采集到的分享链接为空，但仍记录数据");
+
+          // 检查重复（从末尾向前比较）
+          const duplicateIndex = dataStore.findIndex(itemInfo.text);
+          if (duplicateIndex !== -1) {
+            const errorMsg = `检测到重复分享链接！当前第 ${pageIndex + 1} 页第 ${i + 1} 个TR的分享链接与第 ${duplicateIndex + 1} 个TR的分享链接重复。`;
+            console.error(errorMsg);
+
+            // 关闭当前抽屉
+            await closeDrawer();
+
+            // 抛出解析错误
+            const failData = {
+              失败位置: `第 ${pageIndex + 1} 页第 ${i + 1} 个TR`,
+              重试次数: 1,
+              商品ID: itemInfo.itemId,
+              商品名称: itemInfo.itemName,
+              分享链接: itemInfo.text,
+              重复链接位置: `第 ${duplicateIndex + 1} 个TR`,
+            };
+            console.error("解析失效数据:", failData);
+            alert(`解析失效：在第 ${pageIndex + 1} 页第 ${i + 1} 个TR发生解析失效问题，已重试 1 次仍存在重复。\n\n详细数据：\n${JSON.stringify(failData, null, 2)}`);
+            throw new Error(`解析失效：在第 ${pageIndex + 1} 页第 ${i + 1} 个TR发生解析失效问题`);
+          }
+
+          // 存储采集结果
+          dataStore.add(itemInfo);
+          console.log(`已采集商品：${itemInfo.itemId} - ${itemInfo.itemName}`);
+          successCount++;
+
+          // 更新进度
+          if (useDualProgress) {
+            (updateProgress as (pc: number, pt: number, ic: number, it: number, m: string) => void)(
+              pageIndex + 1,
+              totalPagesToFetch,
+              i + 1,
+              totalItems,
+              `已处理: ${tr.getAttribute("data-row-key") || "未知商品"}`
+            );
+          } else {
+            (updateProgress as (c: number, t: number, m: string) => void)(
+              i + 1,
+              totalItems,
+              `已处理: ${tr.getAttribute("data-row-key") || "未知商品"}`
+            );
+          }
+
+          // 关闭抽屉，准备处理下一项
+          if (!(await closeDrawer())) console.warn("关闭抽屉失败，可能影响后续操作");
+        } catch (error) {
+          console.error(`处理商品行时发生错误:`, error, tr);
+          // 解析失效时中断整个流程
+          overlay.remove();
+          return;
+        }
+      }
+
+      // 7. 如果还有下一页，点击下一页继续采集
+      if (pageIndex < totalPagesToFetch - 1) {
+        console.log(`正在跳转到第 ${pageIndex + 2} 页...`);
+        if (!(await clickNextPage())) {
+          console.warn("翻页失败，停止采集");
+          break;
+        }
+
+        // 等待页面加载完成
+        if (!(await waitForPageLoad())) {
+          console.warn("页面加载失败，停止采集");
+          break;
+        }
+        currentPageNum++;
+      }
     }
 
-    // 5. 输出采集结果
+    // 8. 输出采集结果
     const allResults = dataStore.getAll();
-    console.log(`采集完成，成功 ${successCount}/${tableRows.length} 条`);
+    console.log(`采集完成，成功 ${successCount} 条`);
     console.log("获取到的所有信息：", allResults);
 
     if (allResults.length === 0) {

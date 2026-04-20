@@ -20,9 +20,20 @@ export interface SellTryInfoResult {
 }
 
 /**
- * 进度更新回调函数类型
+ * 进度更新回调函数类型（单进度条）
  */
 export type ProgressUpdateCallback = (current: number, total: number, message: string) => void;
+
+/**
+ * 进度更新回调函数类型（双进度条：页面进度 + 当前页进度）
+ */
+export type ProgressUpdateCallbackDual = (
+  pageCurrent: number,
+  pageTotal: number,
+  itemCurrent: number,
+  itemTotal: number,
+  message: string
+) => void;
 
 /**
  * 取消任务回调函数类型
@@ -362,6 +373,220 @@ export function createProgressOverlay(): {
     progressText.textContent = `${current} / ${total} (${percentage}%)`;
     statusText.textContent = message;
     title.textContent = current >= total ? "采集完成!" : "正在采集商品信息...";
+  };
+
+  // 取消任务的函数
+  const cancelTask = () => {
+    isCancelled = true;
+    cancelBtn.textContent = "已取消";
+    cancelBtn.disabled = true;
+    cancelBtn.style.backgroundColor = "#999";
+    cancelBtn.style.cursor = "not-allowed";
+    statusText.textContent = "正在取消...";
+  };
+
+  // 暴露取消按钮点击事件
+  cancelBtn.onclick = () => {
+    cancelTask();
+  };
+
+  return { overlay, updateProgress, cancelTask, isCancelled: () => isCancelled };
+}
+
+/**
+ * 创建双进度条采集进度遮罩层（页面进度 + 当前页进度）
+ * @returns 遮罩层元素、双进度更新函数和取消函数
+ */
+export function createDualProgressOverlay(): {
+  overlay: HTMLDivElement;
+  updateProgress: ProgressUpdateCallbackDual;
+  cancelTask: CancelTaskCallback;
+  isCancelled: IsCancelledCallback;
+} {
+  // 创建遮罩层
+  const overlay = document.createElement("div");
+  overlay.id = "sell-try-info-overlay";
+  Object.assign(overlay.style, {
+    position: "fixed",
+    top: "0",
+    left: "0",
+    width: "100vw",
+    height: "100vh",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    zIndex: "9999",
+    cursor: "not-allowed",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+  });
+
+  // 创建内容容器
+  const content = document.createElement("div");
+  Object.assign(content.style, {
+    textAlign: "center",
+    color: "#fff",
+    padding: "30px 40px",
+    background: "rgba(0, 0, 0, 0.5)",
+    borderRadius: "12px",
+    backdropFilter: "blur(10px)",
+    maxWidth: "450px",
+  });
+
+  // 创建标题
+  const title = document.createElement("div");
+  Object.assign(title.style, {
+    fontSize: "20px",
+    fontWeight: "600",
+    marginBottom: "20px",
+  });
+  title.textContent = "正在采集商品信息...";
+
+  // ===== 页面进度条 =====
+  // 页面进度标签
+  const pageLabel = document.createElement("div");
+  Object.assign(pageLabel.style, {
+    fontSize: "14px",
+    color: "rgba(255, 255, 255, 0.9)",
+    marginBottom: "6px",
+    textAlign: "left",
+    width: "300px",
+  });
+  pageLabel.textContent = "页面进度";
+
+  // 页面进度条容器
+  const pageProgressContainer = document.createElement("div");
+  Object.assign(pageProgressContainer.style, {
+    width: "300px",
+    height: "10px",
+    background: "rgba(255, 255, 255, 0.2)",
+    borderRadius: "5px",
+    overflow: "hidden",
+    marginBottom: "16px",
+  });
+
+  // 页面进度条
+  const pageProgressBar = document.createElement("div");
+  Object.assign(pageProgressBar.style, {
+    height: "100%",
+    width: "0%",
+    background: "linear-gradient(90deg, #722ed1, #9254de)",
+    borderRadius: "5px",
+    transition: "width 0.3s ease",
+  });
+  pageProgressContainer.appendChild(pageProgressBar);
+
+  // ===== 当前页进度条 =====
+  // 当前页进度标签
+  const itemLabel = document.createElement("div");
+  Object.assign(itemLabel.style, {
+    fontSize: "14px",
+    color: "rgba(255, 255, 255, 0.9)",
+    marginBottom: "6px",
+    textAlign: "left",
+    width: "300px",
+  });
+  itemLabel.textContent = "当前页进度";
+
+  // 当前页进度条容器
+  const itemProgressContainer = document.createElement("div");
+  Object.assign(itemProgressContainer.style, {
+    width: "300px",
+    height: "10px",
+    background: "rgba(255, 255, 255, 0.2)",
+    borderRadius: "5px",
+    overflow: "hidden",
+    marginBottom: "16px",
+  });
+
+  // 当前页进度条
+  const itemProgressBar = document.createElement("div");
+  Object.assign(itemProgressBar.style, {
+    height: "100%",
+    width: "0%",
+    background: "linear-gradient(90deg, #1890ff, #52c41a)",
+    borderRadius: "5px",
+    transition: "width 0.3s ease",
+  });
+  itemProgressContainer.appendChild(itemProgressBar);
+
+  // 创建状态文本
+  const statusText = document.createElement("div");
+  Object.assign(statusText.style, {
+    fontSize: "12px",
+    color: "rgba(255, 255, 255, 0.6)",
+    marginTop: "8px",
+  });
+
+  // 创建按钮容器
+  const buttonContainer = document.createElement("div");
+  Object.assign(buttonContainer.style, {
+    display: "flex",
+    justifyContent: "center",
+    gap: "12px",
+    marginTop: "20px",
+  });
+
+  // 创建取消按钮
+  const cancelBtn = document.createElement("button");
+  cancelBtn.textContent = "取消采集";
+  Object.assign(cancelBtn.style, {
+    padding: "8px 20px",
+    cursor: "pointer",
+    backgroundColor: "#ff4d4f",
+    color: "#fff",
+    border: "none",
+    borderRadius: "6px",
+    fontSize: "14px",
+    fontWeight: "500",
+    transition: "all 0.2s ease",
+    boxShadow: "0 2px 8px rgba(255, 77, 79, 0.3)",
+  });
+  // 鼠标悬停效果
+  cancelBtn.onmouseenter = () => {
+    cancelBtn.style.backgroundColor = "#ff7875";
+    cancelBtn.style.transform = "translateY(-1px)";
+  };
+  cancelBtn.onmouseleave = () => {
+    cancelBtn.style.backgroundColor = "#ff4d4f";
+    cancelBtn.style.transform = "translateY(0)";
+  };
+
+  buttonContainer.appendChild(cancelBtn);
+  content.appendChild(title);
+  content.appendChild(pageLabel);
+  content.appendChild(pageProgressContainer);
+  content.appendChild(itemLabel);
+  content.appendChild(itemProgressContainer);
+  content.appendChild(statusText);
+  content.appendChild(buttonContainer);
+  overlay.appendChild(content);
+  document.body.appendChild(overlay);
+
+  // 标记是否已取消
+  let isCancelled = false;
+
+  // 更新进度的函数（双进度条）
+  const updateProgress = (
+    pageCurrent: number,
+    pageTotal: number,
+    itemCurrent: number,
+    itemTotal: number,
+    message: string
+  ) => {
+    // 计算页面进度百分比
+    const pagePercentage = pageTotal > 0 ? Math.round((pageCurrent / pageTotal) * 100) : 0;
+    pageProgressBar.style.width = `${pagePercentage}%`;
+    pageLabel.textContent = `页面进度: ${pageCurrent} / ${pageTotal} (${pagePercentage}%)`;
+
+    // 计算当前页进度百分比
+    const itemPercentage = itemTotal > 0 ? Math.round((itemCurrent / itemTotal) * 100) : 0;
+    itemProgressBar.style.width = `${itemPercentage}%`;
+    itemLabel.textContent = `当前页进度: ${itemCurrent} / ${itemTotal} (${itemPercentage}%)`;
+
+    statusText.textContent = message;
+    title.textContent = pageCurrent >= pageTotal && itemCurrent >= itemTotal ? "采集完成!" : "正在采集商品信息...";
   };
 
   // 取消任务的函数

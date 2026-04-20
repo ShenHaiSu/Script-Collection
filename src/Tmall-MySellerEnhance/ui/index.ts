@@ -9,6 +9,6 @@ export {
   createItemCodeDisplay,
   createItemCodeDisplays,
   removeAllItemCodeDisplays,
-  copyToClipboard,
   type ItemCodeInfo,
 } from "@/Tmall-MySellerEnhance/ui/component/getItemId.ui";
+export { copyToClipboard } from "@/Tmall-MySellerEnhance/helper";

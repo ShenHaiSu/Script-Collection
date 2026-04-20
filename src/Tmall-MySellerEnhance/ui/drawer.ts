@@ -28,6 +28,12 @@ export interface ActionButtonConfig {
    * @returns true 表示当前页面需要显示该按钮，false 表示隐藏
    */
   match?: () => boolean;
+  /**
+   * 点击按钮时是否先隐藏 Drawer
+   * @default false
+   * 当为 true 时，在调用 onClick 之前会先关闭 drawer
+   */
+  clickDrawerHide?: boolean;
 }
 
 /**
@@ -145,6 +151,10 @@ class DrawerManager {
         const actionId = btn.getAttribute("data-action-id");
         const actionConfig = this.state.actionButtons.find((b) => b.id === actionId);
         if (actionConfig) {
+          // 如果设置了 clickDrawerHide 为 true，先关闭 drawer 再执行 onClick
+          if (actionConfig.clickDrawerHide) {
+            this.close();
+          }
           actionConfig.onClick();
         }
       };
@@ -152,6 +162,10 @@ class DrawerManager {
 
     // 绑定快捷输入框事件
     drawerInputManager.bindEvents((buttonConfig) => {
+      // 如果设置了 clickDrawerHide 为 true，先关闭 drawer 再执行 onClick
+      if (buttonConfig.clickDrawerHide) {
+        this.close();
+      }
       buttonConfig.onClick();
     });
   }

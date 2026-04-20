@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫后台订单信息增强
-// @version      2026.04.20.20.34.35
+// @version      2026.04.20.20.42.42
 // @description  增强千牛天猫后台的已卖出宝贝的订单信息，展示更多实用性的信息内容。
 // @author       DaoLuoLTS
 // @match        https://myseller.taobao.com/*
@@ -1360,12 +1360,44 @@
       fontSize: "12px",
       color: "rgba(255, 255, 255, 0.6)"
     });
+    const buttonContainer = document.createElement("div");
+    Object.assign(buttonContainer.style, {
+      display: "flex",
+      justifyContent: "center",
+      gap: "12px",
+      marginTop: "20px"
+    });
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "取消采集";
+    Object.assign(cancelBtn.style, {
+      padding: "8px 20px",
+      cursor: "pointer",
+      backgroundColor: "#ff4d4f",
+      color: "#fff",
+      border: "none",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: "500",
+      transition: "all 0.2s ease",
+      boxShadow: "0 2px 8px rgba(255, 77, 79, 0.3)"
+    });
+    cancelBtn.onmouseenter = () => {
+      cancelBtn.style.backgroundColor = "#ff7875";
+      cancelBtn.style.transform = "translateY(-1px)";
+    };
+    cancelBtn.onmouseleave = () => {
+      cancelBtn.style.backgroundColor = "#ff4d4f";
+      cancelBtn.style.transform = "translateY(0)";
+    };
+    buttonContainer.appendChild(cancelBtn);
     content.appendChild(title);
     content.appendChild(progressContainer);
     content.appendChild(progressText);
     content.appendChild(statusText);
+    content.appendChild(buttonContainer);
     overlay.appendChild(content);
     document.body.appendChild(overlay);
+    let isCancelled = false;
     const updateProgress = (current, total, message) => {
       const percentage = total > 0 ? Math.round(current / total * 100) : 0;
       progressBar.style.width = `${percentage}%`;
@@ -1373,7 +1405,18 @@
       statusText.textContent = message;
       title.textContent = current >= total ? "采集完成!" : "正在采集商品信息...";
     };
-    return { overlay, updateProgress };
+    const cancelTask = () => {
+      isCancelled = true;
+      cancelBtn.textContent = "已取消";
+      cancelBtn.disabled = true;
+      cancelBtn.style.backgroundColor = "#999";
+      cancelBtn.style.cursor = "not-allowed";
+      statusText.textContent = "正在取消...";
+    };
+    cancelBtn.onclick = () => {
+      cancelTask();
+    };
+    return { overlay, updateProgress, cancelTask, isCancelled: () => isCancelled };
   }
   function showResultsTable(results) {
     const modal = document.createElement("div");
@@ -1695,10 +1738,14 @@
     await sleep(DRAWER_OPEN_DELAY);
   }
   async function handleSellTryInfo() {
-    const { overlay, updateProgress } = createProgressOverlay();
+    const { overlay, updateProgress, isCancelled } = createProgressOverlay();
     try {
       updateProgress(0, 0, "正在请求剪切板权限...");
       if (!await ensureClipboardPermission()) {
+        overlay.remove();
+        return;
+      }
+      if (isCancelled()) {
         overlay.remove();
         return;
       }
@@ -1716,6 +1763,15 @@
       let successCount = 0;
       const total = tableRows.length;
       for (let i = 0; i < tableRows.length; i++) {
+        if (isCancelled()) {
+          console.log("用户取消了采集任务");
+          try {
+            await closeDrawer();
+          } catch {
+          }
+          overlay.remove();
+          return;
+        }
         const tr = tableRows[i];
         updateProgress(i, total, `正在处理第 ${i + 1} 个商品...`);
         try {

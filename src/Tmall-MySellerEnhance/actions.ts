@@ -72,7 +72,7 @@ export const ACTION_BUTTONS: ActionConfig[] = [
   },
   {
     id: "sell-try-info",
-    label: "获取新品试销信息",
+    label: "获取新品试销分享信息",
     icon: "🛒",
     onClick: handleSellTryInfo,
     // match 函数：从 match 目录导入

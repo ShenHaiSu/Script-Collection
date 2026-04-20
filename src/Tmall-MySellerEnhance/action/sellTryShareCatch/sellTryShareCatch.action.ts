@@ -269,12 +269,18 @@ async function waitForDrawerOpen(): Promise<void> {
  */
 export async function handleSellTryInfo(): Promise<void> {
   // 使用 UI 组件创建进度遮罩层
-  const { overlay, updateProgress } = createProgressOverlay();
+  const { overlay, updateProgress, isCancelled } = createProgressOverlay();
 
   try {
     // 1. 确保有剪切板访问权限
     updateProgress(0, 0, "正在请求剪切板权限...");
     if (!(await ensureClipboardPermission())) {
+      overlay.remove();
+      return;
+    }
+
+    // 检查是否已取消
+    if (isCancelled()) {
       overlay.remove();
       return;
     }
@@ -299,6 +305,19 @@ export async function handleSellTryInfo(): Promise<void> {
     const total = tableRows.length;
 
     for (let i = 0; i < tableRows.length; i++) {
+      // 检查是否已取消
+      if (isCancelled()) {
+        console.log("用户取消了采集任务");
+        // 尝试关闭可能打开的抽屉
+        try {
+          await closeDrawer();
+        } catch {
+          // 忽略关闭抽屉的错误
+        }
+        overlay.remove();
+        return;
+      }
+
       const tr = tableRows[i];
       updateProgress(i, total, `正在处理第 ${i + 1} 个商品...`);
 

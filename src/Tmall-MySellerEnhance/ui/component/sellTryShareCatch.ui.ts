@@ -25,12 +25,24 @@ export interface SellTryInfoResult {
 export type ProgressUpdateCallback = (current: number, total: number, message: string) => void;
 
 /**
+ * 取消任务回调函数类型
+ */
+export type CancelTaskCallback = () => void;
+
+/**
+ * 检查是否已取消的回调函数类型
+ */
+export type IsCancelledCallback = () => boolean;
+
+/**
  * 创建采集进度遮罩层
- * @returns 遮罩层元素和进度更新函数
+ * @returns 遮罩层元素、进度更新函数和取消函数
  */
 export function createProgressOverlay(): {
   overlay: HTMLDivElement;
   updateProgress: ProgressUpdateCallback;
+  cancelTask: CancelTaskCallback;
+  isCancelled: IsCancelledCallback;
 } {
   // 创建遮罩层
   const overlay = document.createElement("div");
@@ -110,12 +122,51 @@ export function createProgressOverlay(): {
     color: "rgba(255, 255, 255, 0.6)",
   });
 
+  // 创建按钮容器
+  const buttonContainer = document.createElement("div");
+  Object.assign(buttonContainer.style, {
+    display: "flex",
+    justifyContent: "center",
+    gap: "12px",
+    marginTop: "20px",
+  });
+
+  // 创建取消按钮
+  const cancelBtn = document.createElement("button");
+  cancelBtn.textContent = "取消采集";
+  Object.assign(cancelBtn.style, {
+    padding: "8px 20px",
+    cursor: "pointer",
+    backgroundColor: "#ff4d4f",
+    color: "#fff",
+    border: "none",
+    borderRadius: "6px",
+    fontSize: "14px",
+    fontWeight: "500",
+    transition: "all 0.2s ease",
+    boxShadow: "0 2px 8px rgba(255, 77, 79, 0.3)",
+  });
+  // 鼠标悬停效果
+  cancelBtn.onmouseenter = () => {
+    cancelBtn.style.backgroundColor = "#ff7875";
+    cancelBtn.style.transform = "translateY(-1px)";
+  };
+  cancelBtn.onmouseleave = () => {
+    cancelBtn.style.backgroundColor = "#ff4d4f";
+    cancelBtn.style.transform = "translateY(0)";
+  };
+
+  buttonContainer.appendChild(cancelBtn);
   content.appendChild(title);
   content.appendChild(progressContainer);
   content.appendChild(progressText);
   content.appendChild(statusText);
+  content.appendChild(buttonContainer);
   overlay.appendChild(content);
   document.body.appendChild(overlay);
+
+  // 标记是否已取消
+  let isCancelled = false;
 
   // 更新进度的函数
   const updateProgress = (current: number, total: number, message: string) => {
@@ -126,7 +177,22 @@ export function createProgressOverlay(): {
     title.textContent = current >= total ? "采集完成!" : "正在采集商品信息...";
   };
 
-  return { overlay, updateProgress };
+  // 取消任务的函数
+  const cancelTask = () => {
+    isCancelled = true;
+    cancelBtn.textContent = "已取消";
+    cancelBtn.disabled = true;
+    cancelBtn.style.backgroundColor = "#999";
+    cancelBtn.style.cursor = "not-allowed";
+    statusText.textContent = "正在取消...";
+  };
+
+  // 暴露取消按钮点击事件
+  cancelBtn.onclick = () => {
+    cancelTask();
+  };
+
+  return { overlay, updateProgress, cancelTask, isCancelled: () => isCancelled };
 }
 
 /**

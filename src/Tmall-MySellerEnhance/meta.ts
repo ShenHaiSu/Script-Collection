@@ -36,6 +36,9 @@ export const meta = {
   match: [
     "https://myseller.taobao.com/*",
     "https://qn.taobao.com/*",
+    // 新品试销页面
+    "https://qn.taobao.com/home.htm/trade-try-buy/merchList*",
+    "https://myseller.taobao.com/home.htm/trade-try-buy/merchList*",
   ],
 
   // @grant: 申请脚本权限。常见的有 GM_xmlhttpRequest, GM_setValue, GM_getValue 等。

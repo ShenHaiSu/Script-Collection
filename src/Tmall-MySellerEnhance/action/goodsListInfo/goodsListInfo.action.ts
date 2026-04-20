@@ -19,7 +19,7 @@
  * 5. 构造纯文本表格并复制到剪贴板
  */
 
-import { copyToClipboard } from "@/Tmall-MySellerEnhance/ui/component/getItemId.ui";
+import { copyToClipboard } from "@/Tmall-MySellerEnhance/helper";
 
 /**
  * 商品列表数据项

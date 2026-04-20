@@ -9,7 +9,7 @@
  */
 
 import { handleGetItemId } from "@/Tmall-MySellerEnhance/action/getItemId/getItemId.action";
-import { copyToClipboard } from "@/Tmall-MySellerEnhance/ui/component/getItemId.ui";
+import { copyToClipboard } from "@/Tmall-MySellerEnhance/helper";
 
 /**
  * 检查getItemId的产物是否存在于DOM中

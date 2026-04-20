@@ -17,15 +17,17 @@ import { handleGetItemId } from "@/Tmall-MySellerEnhance/action/getItemId/getIte
 import { handleCopyAllItemIds } from "@/Tmall-MySellerEnhance/action/copyAllItemIds/copyAllItemIds.action";
 import { handleCopyUniqueItemIds } from "@/Tmall-MySellerEnhance/action/copyUniqueItemIds/copyUniqueItemIds.action";
 import { handleGoodsListInfo } from "@/Tmall-MySellerEnhance/action/goodsListInfo/goodsListInfo.action";
+import { handleSellTryInfo } from "@/Tmall-MySellerEnhance/action/sellTryShareCatch/sellTryShareCatch.action";
 
 // 从 match 目录导入 match 函数
 import { getItemIdMatch } from "@/Tmall-MySellerEnhance/match/getItemId.match";
 import { copyAllItemIdsMatch } from "@/Tmall-MySellerEnhance/match/copyAllItemIds.match";
 import { copyUniqueItemIdsMatch } from "@/Tmall-MySellerEnhance/match/copyUniqueItemIds.match";
 import { goodsListInfoMatch } from "@/Tmall-MySellerEnhance/match/goodsListInfo.match";
+import { sellTryInfoMatch } from "@/Tmall-MySellerEnhance/match/sellTryInfo.match";
 
 // 重新导出供外部使用
-export { handleGetItemId, handleCopyAllItemIds, handleCopyUniqueItemIds, handleGoodsListInfo };
+export { handleGetItemId, handleCopyAllItemIds, handleCopyUniqueItemIds, handleGoodsListInfo, handleSellTryInfo };
 
 // 重新导出类型供外部使用
 export type { ActionConfig };
@@ -67,6 +69,16 @@ export const ACTION_BUTTONS: ActionConfig[] = [
     onClick: handleGoodsListInfo,
     // match 函数：从 match 目录导入
     match: goodsListInfoMatch,
+  },
+  {
+    id: "sell-try-info",
+    label: "获取新品试销信息",
+    icon: "🛒",
+    onClick: handleSellTryInfo,
+    // match 函数：从 match 目录导入
+    match: sellTryInfoMatch,
+    // 点击click之后关闭侧边抽屉
+    clickDrawerHide: true,
   },
   // 后续可以在这里添加更多按钮配置
   // {

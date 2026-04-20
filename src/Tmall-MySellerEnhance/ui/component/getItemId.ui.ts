@@ -3,6 +3,8 @@
  * 用于在子订单行中展示商品编码并提供复制功能
  */
 
+import { copyToClipboard } from "@/Tmall-MySellerEnhance/helper";
+
 /**
  * 商品编码信息
  */
@@ -103,36 +105,9 @@ const ITEM_CODE_STYLES = {
 };
 
 /**
- * 复制文本到剪贴板
- * @param text 要复制的文本
- * @returns 是否复制成功
+ * 复制文本到剪贴板功能已迁移到 helper.ts
+ * 请使用: import { copyToClipboard } from "@/Tmall-MySellerEnhance/helper";
  */
-export async function copyToClipboard(text: string): Promise<boolean> {
-  try {
-    // 使用 Clipboard API
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-
-    // 兼容旧版浏览器
-    const textArea = document.createElement("textarea");
-    textArea.value = text;
-    textArea.style.position = "fixed";
-    textArea.style.left = "-9999px";
-    textArea.style.top = "-9999px";
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-
-    const result = document.execCommand("copy");
-    document.body.removeChild(textArea);
-    return result;
-  } catch (error) {
-    console.error("复制到剪贴板失败:", error);
-    return false;
-  }
-}
 
 /**
  * 创建商品编码展示和复制按钮

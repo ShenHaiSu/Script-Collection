@@ -1,10 +1,12 @@
 // ==UserScript==
 // @name         天猫后台订单信息增强
-// @version      2026.04.08.20.40.59
+// @version      2026.04.20.20.34.35
 // @description  增强千牛天猫后台的已卖出宝贝的订单信息，展示更多实用性的信息内容。
 // @author       DaoLuoLTS
 // @match        https://myseller.taobao.com/*
 // @match        https://qn.taobao.com/*
+// @match        https://qn.taobao.com/home.htm/trade-try-buy/merchList*
+// @match        https://myseller.taobao.com/home.htm/trade-try-buy/merchList*
 // @namespace    https://github.com/ShenHaiSu/Script-Collection
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=tmall.com
 // @grant        GM_setValue
@@ -490,11 +492,17 @@
           const actionId = btn.getAttribute("data-action-id");
           const actionConfig = this.state.actionButtons.find((b) => b.id === actionId);
           if (actionConfig) {
+            if (actionConfig.clickDrawerHide) {
+              this.close();
+            }
             actionConfig.onClick();
           }
         };
       });
       drawerInputManager.bindEvents((buttonConfig) => {
+        if (buttonConfig.clickDrawerHide) {
+          this.close();
+        }
         buttonConfig.onClick();
       });
     }
@@ -617,6 +625,30 @@
   };
   var drawerManager = new DrawerManager();
 
+  // Tmall-MySellerEnhance/helper.ts
+  async function copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      textArea.style.top = "-9999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const result = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      return result;
+    } catch (error) {
+      console.error("复制到剪贴板失败:", error);
+      return false;
+    }
+  }
+
   // Tmall-MySellerEnhance/ui/component/getItemId.ui.ts
   var ITEM_CODE_STYLES = {
     CONTAINER: `
@@ -699,28 +731,6 @@
     background: #ff6a00;
   `
   };
-  async function copyToClipboard(text) {
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        return true;
-      }
-      const textArea = document.createElement("textarea");
-      textArea.value = text;
-      textArea.style.position = "fixed";
-      textArea.style.left = "-9999px";
-      textArea.style.top = "-9999px";
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      const result = document.execCommand("copy");
-      document.body.removeChild(textArea);
-      return result;
-    } catch (error) {
-      console.error("复制到剪贴板失败:", error);
-      return false;
-    }
-  }
   function createItemCodeDisplay(itemCodeInfo) {
     const { itemId, trElement } = itemCodeInfo;
     const container = document.createElement("div");
@@ -1227,7 +1237,7 @@
     let tableText = header.join("	") + "\n";
     goodsList.forEach((item) => {
       const row = [
-        item.imageUrl ? `<img src="${item.imageUrl}">` : "",
+        "",
         item.itemId,
         item.itemCode,
         item.title,
@@ -1284,6 +1294,497 @@
     }
   }
 
+  // Tmall-MySellerEnhance/ui/component/sellTryShareCatch.ui.ts
+  function createProgressOverlay() {
+    const overlay = document.createElement("div");
+    overlay.id = "sell-try-info-overlay";
+    Object.assign(overlay.style, {
+      position: "fixed",
+      top: "0",
+      left: "0",
+      width: "100vw",
+      height: "100vh",
+      backgroundColor: "rgba(0, 0, 0, 0.7)",
+      zIndex: "9999",
+      cursor: "not-allowed",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+    });
+    const content = document.createElement("div");
+    Object.assign(content.style, {
+      textAlign: "center",
+      color: "#fff",
+      padding: "30px 40px",
+      background: "rgba(0, 0, 0, 0.5)",
+      borderRadius: "12px",
+      backdropFilter: "blur(10px)",
+      maxWidth: "400px"
+    });
+    const title = document.createElement("div");
+    Object.assign(title.style, {
+      fontSize: "20px",
+      fontWeight: "600",
+      marginBottom: "20px"
+    });
+    title.textContent = "正在采集商品信息...";
+    const progressContainer = document.createElement("div");
+    Object.assign(progressContainer.style, {
+      width: "300px",
+      height: "8px",
+      background: "rgba(255, 255, 255, 0.2)",
+      borderRadius: "4px",
+      overflow: "hidden",
+      marginBottom: "16px"
+    });
+    const progressBar = document.createElement("div");
+    Object.assign(progressBar.style, {
+      height: "100%",
+      width: "0%",
+      background: "linear-gradient(90deg, #1890ff, #52c41a)",
+      borderRadius: "4px",
+      transition: "width 0.3s ease"
+    });
+    progressContainer.appendChild(progressBar);
+    const progressText = document.createElement("div");
+    Object.assign(progressText.style, {
+      fontSize: "14px",
+      color: "rgba(255, 255, 255, 0.8)",
+      marginBottom: "8px"
+    });
+    progressText.textContent = "准备中...";
+    const statusText = document.createElement("div");
+    Object.assign(statusText.style, {
+      fontSize: "12px",
+      color: "rgba(255, 255, 255, 0.6)"
+    });
+    content.appendChild(title);
+    content.appendChild(progressContainer);
+    content.appendChild(progressText);
+    content.appendChild(statusText);
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+    const updateProgress = (current, total, message) => {
+      const percentage = total > 0 ? Math.round(current / total * 100) : 0;
+      progressBar.style.width = `${percentage}%`;
+      progressText.textContent = `${current} / ${total} (${percentage}%)`;
+      statusText.textContent = message;
+      title.textContent = current >= total ? "采集完成!" : "正在采集商品信息...";
+    };
+    return { overlay, updateProgress };
+  }
+  function showResultsTable(results) {
+    const modal = document.createElement("div");
+    modal.id = "sell-try-info-results-modal";
+    Object.assign(modal.style, {
+      position: "fixed",
+      top: "0",
+      left: "0",
+      width: "100vw",
+      height: "100vh",
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      zIndex: "10000",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+    });
+    const content = document.createElement("div");
+    Object.assign(content.style, {
+      backgroundColor: "#fff",
+      borderRadius: "8px",
+      padding: "20px",
+      maxWidth: "90%",
+      maxHeight: "90vh",
+      overflow: "auto"
+    });
+    const title = document.createElement("h2");
+    title.textContent = `采集完成，共 ${results.length} 条数据`;
+    Object.assign(title.style, {
+      marginTop: "0",
+      marginBottom: "16px"
+    });
+    const table = document.createElement("table");
+    Object.assign(table.style, {
+      width: "100%",
+      borderCollapse: "collapse",
+      fontSize: "14px"
+    });
+    const thead = document.createElement("thead");
+    const headerRow = document.createElement("tr");
+    ["序号", "商品图片", "商品ID", "商品名称", "分享链接", "操作"].forEach((text) => {
+      const th = document.createElement("th");
+      th.textContent = text;
+      Object.assign(th.style, {
+        border: "1px solid #ddd",
+        padding: "8px",
+        textAlign: "left",
+        backgroundColor: "#f5f5f5"
+      });
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    results.forEach((item, index) => {
+      const tr = document.createElement("tr");
+      const tdIndex = document.createElement("td");
+      tdIndex.textContent = String(index + 1);
+      Object.assign(tdIndex.style, { border: "1px solid #ddd", padding: "8px" });
+      tr.appendChild(tdIndex);
+      const tdImg = document.createElement("td");
+      tdImg.style.border = "1px solid #ddd";
+      if (item.imgUrl) {
+        const img = document.createElement("img");
+        img.src = item.imgUrl;
+        Object.assign(img.style, {
+          width: "50px",
+          height: "50px",
+          objectFit: "cover"
+        });
+        tdImg.appendChild(img);
+      }
+      tr.appendChild(tdImg);
+      const tdId = document.createElement("td");
+      tdId.textContent = item.itemId;
+      Object.assign(tdId.style, { border: "1px solid #ddd", padding: "8px", wordBreak: "break-all" });
+      tr.appendChild(tdId);
+      const tdName = document.createElement("td");
+      tdName.textContent = item.itemName;
+      Object.assign(tdName.style, {
+        border: "1px solid #ddd",
+        padding: "8px",
+        maxWidth: "200px",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap"
+      });
+      tr.appendChild(tdName);
+      const tdText = document.createElement("td");
+      tdText.textContent = item.text || "(空)";
+      Object.assign(tdText.style, {
+        border: "1px solid #ddd",
+        padding: "8px",
+        maxWidth: "300px",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap"
+      });
+      tr.appendChild(tdText);
+      const tdAction = document.createElement("td");
+      Object.assign(tdAction.style, { border: "1px solid #ddd", padding: "8px" });
+      const copyBtn = document.createElement("button");
+      copyBtn.textContent = "复制链接";
+      Object.assign(copyBtn.style, {
+        padding: "4px 8px",
+        cursor: "pointer",
+        backgroundColor: "#1890ff",
+        color: "#fff",
+        border: "none",
+        borderRadius: "4px"
+      });
+      copyBtn.onclick = async () => {
+        if (item.text) {
+          await copyToClipboard(item.text);
+          alert("复制成功！");
+        }
+      };
+      tdAction.appendChild(copyBtn);
+      tr.appendChild(tdAction);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    content.appendChild(title);
+    content.appendChild(table);
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "关闭";
+    Object.assign(closeBtn.style, {
+      marginTop: "16px",
+      padding: "8px 16px",
+      cursor: "pointer",
+      backgroundColor: "#666",
+      color: "#fff",
+      border: "none",
+      borderRadius: "4px"
+    });
+    closeBtn.onclick = () => modal.remove();
+    content.appendChild(closeBtn);
+    const copyAllBtn = document.createElement("button");
+    copyAllBtn.textContent = "复制全部链接";
+    Object.assign(copyAllBtn.style, {
+      marginTop: "16px",
+      marginLeft: "8px",
+      padding: "8px 16px",
+      cursor: "pointer",
+      backgroundColor: "#52c41a",
+      color: "#fff",
+      border: "none",
+      borderRadius: "4px"
+    });
+    copyAllBtn.onclick = async () => {
+      const allTexts = results.map((r) => r.text).filter((t) => t).join("\n\n");
+      if (allTexts) {
+        await copyToClipboard(allTexts);
+        alert("全部链接已复制到剪贴板！");
+      }
+    };
+    content.appendChild(copyAllBtn);
+    modal.appendChild(content);
+    modal.onclick = (e) => {
+      if (e.target === modal) modal.remove();
+    };
+    document.body.appendChild(modal);
+  }
+
+  // Tmall-MySellerEnhance/action/sellTryShareCatch/sellTryShareCatch.action.ts
+  var DataStore = class {
+    constructor() {
+      __publicField(this, "results", []);
+    }
+    clear() {
+      this.results.length = 0;
+    }
+    add(item) {
+      this.results.push(item);
+    }
+    getAll() {
+      return [...this.results];
+    }
+    findIndex(text) {
+      if (!text || this.results.length === 0) return -1;
+      for (let i = this.results.length - 1; i >= 0; i--) {
+        if (this.results[i].text === text) return i;
+      }
+      return -1;
+    }
+  };
+  var dataStore = new DataStore();
+  var SELECTORS = {
+    // 表格相关
+    tableBody: "table > tbody",
+    tableRow: "tr[data-row-key]",
+    tableRowKey: "data-row-key",
+    // 商品信息
+    itemImage: "td img",
+    itemLink: "a",
+    itemId: "data-row-key",
+    // 操作按钮
+    actionButton: "td:last-child button",
+    // Tab 切换
+    shareTab: "div.tbd-tabs-nav-wrap div[data-node-key='item']",
+    // 抽屉弹窗
+    drawerContent: "div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div",
+    drawerButtons: "div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div > button"
+  };
+  var BUTTON_CLICK_DELAY = 800;
+  var DRAWER_OPEN_DELAY = 1e3;
+  var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  function trim(str) {
+    return str?.trim() ?? "";
+  }
+  async function safeClickButton(button, delay = BUTTON_CLICK_DELAY) {
+    if (!button) {
+      console.warn("按钮元素不存在，跳过点击操作");
+      return false;
+    }
+    try {
+      button.click();
+      await sleep(delay);
+      return true;
+    } catch (error) {
+      console.error("点击按钮失败:", error);
+      return false;
+    }
+  }
+  async function readFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      console.log("剪切板内容:", text);
+      return text || "";
+    } catch (error) {
+      console.error("读取剪切板失败:", error);
+      return "";
+    }
+  }
+  async function ensureClipboardPermission() {
+    try {
+      await navigator.clipboard.readText();
+      return true;
+    } catch (err) {
+      console.log("正在请求剪切板权限...", err);
+      try {
+        await navigator.clipboard.readText();
+        return true;
+      } catch {
+        console.error("剪切板权限被拒绝");
+        alert("请授予剪切板访问权限以继续执行脚本");
+        return false;
+      }
+    }
+  }
+  function extractItemInfoFromRow(tr) {
+    try {
+      const img = tr.querySelector(SELECTORS.itemImage);
+      const imgUrl = img?.src ?? "";
+      const itemId = tr.getAttribute(SELECTORS.tableRowKey) ?? "";
+      const itemLink = tr.querySelector(SELECTORS.itemLink);
+      const itemName = trim(itemLink?.innerText);
+      if (!itemId) {
+        console.warn("商品行缺少 data-row-key 属性", tr);
+        return null;
+      }
+      return { imgUrl, text: "", itemId, itemName };
+    } catch (error) {
+      console.error("提取商品信息失败:", error);
+      return null;
+    }
+  }
+  function getActionButtonFromRow(tr) {
+    const tds = tr.querySelectorAll("td");
+    if (tds.length === 0) return null;
+    const lastTd = tds[tds.length - 1];
+    return lastTd?.querySelector("button") ?? null;
+  }
+  function getTableRows() {
+    const tbody = document.querySelector(SELECTORS.tableBody);
+    if (!tbody) {
+      throw new Error("未找到表格数据 (table > tbody)");
+    }
+    const trs = Array.from(tbody.querySelectorAll(SELECTORS.tableRow));
+    if (trs.length === 0) {
+      throw new Error("未找到有效的商品行数据");
+    }
+    return trs;
+  }
+  async function switchToShareTab() {
+    const tabs = document.querySelectorAll(SELECTORS.shareTab);
+    if (tabs.length === 0) {
+      console.warn("未找到分享 tab 元素");
+      return false;
+    }
+    try {
+      tabs[0].click();
+      await sleep(BUTTON_CLICK_DELAY);
+      return true;
+    } catch (error) {
+      console.error("切换分享 tab 失败:", error);
+      return false;
+    }
+  }
+  async function clickGenerateTokenButton() {
+    const drawerDivs = document.querySelectorAll(SELECTORS.drawerContent);
+    if (drawerDivs.length === 0) {
+      console.warn("未找到抽屉弹窗内容");
+      return false;
+    }
+    const lastDiv = drawerDivs[drawerDivs.length - 1];
+    const generateButton = lastDiv.querySelector("button");
+    return await safeClickButton(generateButton, BUTTON_CLICK_DELAY);
+  }
+  async function closeDrawer() {
+    const buttonList = document.querySelectorAll(SELECTORS.drawerButtons);
+    if (buttonList.length < 2) {
+      console.warn("未找到足够的关闭按钮");
+      return false;
+    }
+    return await safeClickButton(buttonList[1], BUTTON_CLICK_DELAY);
+  }
+  async function waitForDrawerOpen() {
+    await sleep(DRAWER_OPEN_DELAY);
+  }
+  async function handleSellTryInfo() {
+    const { overlay, updateProgress } = createProgressOverlay();
+    try {
+      updateProgress(0, 0, "正在请求剪切板权限...");
+      if (!await ensureClipboardPermission()) {
+        overlay.remove();
+        return;
+      }
+      let tableRows;
+      try {
+        updateProgress(0, 0, "正在获取表格数据...");
+        tableRows = getTableRows();
+      } catch (error) {
+        console.error("获取表格数据失败:", error);
+        alert(error instanceof Error ? error.message : "获取表格数据失败");
+        overlay.remove();
+        return;
+      }
+      dataStore.clear();
+      let successCount = 0;
+      const total = tableRows.length;
+      for (let i = 0; i < tableRows.length; i++) {
+        const tr = tableRows[i];
+        updateProgress(i, total, `正在处理第 ${i + 1} 个商品...`);
+        try {
+          const itemInfo = extractItemInfoFromRow(tr);
+          if (!itemInfo) {
+            console.warn("跳过无效商品行");
+            continue;
+          }
+          const actionButton = getActionButtonFromRow(tr);
+          if (!await safeClickButton(actionButton, 1e3)) {
+            console.warn("无法打开商品详情抽屉，跳过此项");
+            continue;
+          }
+          await waitForDrawerOpen();
+          if (!await switchToShareTab()) {
+            console.warn("切换分享 tab 失败，尝试继续处理");
+          }
+          if (!await clickGenerateTokenButton()) {
+            console.warn("生成口令失败，尝试继续处理");
+          }
+          itemInfo.text = await readFromClipboard();
+          if (!itemInfo.text) console.warn("采集到的分享链接为空，但仍记录数据");
+          const duplicateIndex = dataStore.findIndex(itemInfo.text);
+          if (duplicateIndex !== -1) {
+            const errorMsg = `检测到重复分享链接！当前第 ${i + 1} 个TR的分享链接与第 ${duplicateIndex + 1} 个TR的分享链接重复。`;
+            console.error(errorMsg);
+            await closeDrawer();
+            const failData = {
+              失败位置: `第 ${i + 1} 个TR`,
+              重试次数: 1,
+              商品ID: itemInfo.itemId,
+              商品名称: itemInfo.itemName,
+              分享链接: itemInfo.text,
+              重复链接位置: `第 ${duplicateIndex + 1} 个TR`
+            };
+            console.error("解析失效数据:", failData);
+            alert(`解析失效：在第 ${i + 1} 个TR发生解析失效问题，已重试 1 次仍存在重复。
+
+详细数据：
+${JSON.stringify(failData, null, 2)}`);
+            throw new Error(`解析失效：在第 ${i + 1} 个TR发生解析失效问题`);
+          }
+          dataStore.add(itemInfo);
+          console.log(`已采集商品：${itemInfo.itemId} - ${itemInfo.itemName}`);
+          successCount++;
+          updateProgress(i + 1, total, `已处理: ${tr.getAttribute("data-row-key") || "未知商品"}`);
+          if (!await closeDrawer()) console.warn("关闭抽屉失败，可能影响后续操作");
+        } catch (error) {
+          console.error(`处理商品行时发生错误:`, error, tr);
+          overlay.remove();
+          return;
+        }
+      }
+      const allResults = dataStore.getAll();
+      console.log(`采集完成，成功 ${successCount}/${tableRows.length} 条`);
+      console.log("获取到的所有信息：", allResults);
+      if (allResults.length === 0) {
+        alert("未采集到任何数据，请查看控制台日志。");
+      } else {
+        showResultsTable(allResults);
+      }
+    } catch (error) {
+      console.error("执行过程中发生未捕获错误:", error);
+      alert("执行过程中发生错误，详情请查看控制台。");
+    } finally {
+      overlay.remove();
+    }
+  }
+
   // Tmall-MySellerEnhance/match/getItemId.match.ts
   function getItemIdMatch() {
     const href = window.location.href;
@@ -1306,6 +1807,13 @@
   function goodsListInfoMatch() {
     const href = window.location.href;
     const matchPattern = /home\.htm\/SellManage\/[^?]*\?/;
+    return matchPattern.test(href);
+  }
+
+  // Tmall-MySellerEnhance/match/sellTryInfo.match.ts
+  function sellTryInfoMatch() {
+    const href = window.location.href;
+    const matchPattern = /home\.htm\/trade-try-buy\/merchList/;
     return matchPattern.test(href);
   }
 
@@ -1342,6 +1850,16 @@
       onClick: handleGoodsListInfo,
       // match 函数：从 match 目录导入
       match: goodsListInfoMatch
+    },
+    {
+      id: "sell-try-info",
+      label: "获取新品试销信息",
+      icon: "🛒",
+      onClick: handleSellTryInfo,
+      // match 函数：从 match 目录导入
+      match: sellTryInfoMatch,
+      // 点击click之后关闭侧边抽屉
+      clickDrawerHide: true
     }
     // 后续可以在这里添加更多按钮配置
     // {

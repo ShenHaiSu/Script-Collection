@@ -34,6 +34,193 @@ export type CancelTaskCallback = () => void;
  */
 export type IsCancelledCallback = () => boolean;
 
+// #region Toast 提示功能
+let toastTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * 显示 Toast 提示
+ * @param message 提示消息
+ * @param duration 显示时长（毫秒）
+ */
+function showToast(message: string, duration: number = 2000): void {
+  // 清除之前的 toast
+  if (toastTimer) {
+    clearTimeout(toastTimer);
+    const existingToast = document.getElementById("sell-try-info-toast");
+    if (existingToast) {
+      existingToast.remove();
+    }
+  }
+
+  // 创建 toast 元素
+  const toast = document.createElement("div");
+  toast.id = "sell-try-info-toast";
+  Object.assign(toast.style, {
+    position: "fixed",
+    bottom: "20px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    background: "rgba(0, 0, 0, 0.75)",
+    color: "#fff",
+    padding: "10px 20px",
+    borderRadius: "4px",
+    fontSize: "14px",
+    zIndex: "10001",
+    animation: "sellTryInfoFadeIn 0.3s",
+  });
+  toast.textContent = message;
+
+  // 添加动画样式
+  const style = document.createElement("style");
+  style.textContent = `
+    @keyframes sellTryInfoFadeIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+  `;
+  if (!document.getElementById("sell-try-info-toast-style")) {
+    style.id = "sell-try-info-toast-style";
+    document.head.appendChild(style);
+  }
+
+  document.body.appendChild(toast);
+
+  // 设置自动关闭
+  toastTimer = setTimeout(() => {
+    toast.remove();
+    toastTimer = null;
+  }, duration);
+}
+
+// #region 图片复制到剪贴板
+/**
+ * 将图片复制到剪贴板（实际图片而非URL）
+ * @param imageUrl 图片URL
+ */
+async function copyImageToClipboard(imageUrl: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    
+    img.onload = async () => {
+      try {
+        // 创建800x800的canvas
+        const canvas = document.createElement("canvas");
+        canvas.width = 800;
+        canvas.height = 800;
+        
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          console.error("无法获取canvas上下文");
+          resolve(false);
+          return;
+        }
+        
+        // 绘制图片到canvas（居中裁剪为正方形）
+        const size = Math.min(img.width, img.height);
+        const sx = (img.width - size) / 2;
+        const sy = (img.height - size) / 2;
+        ctx.drawImage(img, sx, sy, size, size, 0, 0, 800, 800);
+        
+        // 将canvas转换为blob并复制到剪贴板
+        canvas.toBlob(async (blob) => {
+          if (!blob) {
+            console.error("无法创建图片blob");
+            resolve(false);
+            return;
+          }
+          
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                [blob.type]: blob
+              })
+            ]);
+            resolve(true);
+          } catch (e) {
+            console.error("复制图片到剪贴板失败:", e);
+            resolve(false);
+          }
+        }, "image/png");
+      } catch (e) {
+        console.error("处理图片失败:", e);
+        resolve(false);
+      }
+    };
+    
+    img.onerror = () => {
+      console.error("图片加载失败");
+      resolve(false);
+    };
+    
+    img.src = imageUrl;
+  });
+}
+
+// #region 表格结构复制功能
+/**
+ * 构建表格HTML结构并复制到剪贴板
+ * @param results 采集结果数据
+ */
+async function copyTableStructure(results: SellTryInfoResult[]): Promise<void> {
+  // 构建表格行
+  const rows = results
+    .map((item) => {
+      return `  <tr>
+    <td><img src='${item.imgUrl}' width='200' height='200'></td>
+    <td>${item.itemId}</td>
+    <td>${item.itemName}</td>
+    <td>${item.text}</td>
+  </tr>`;
+    })
+    .join("\n");
+
+  // 构建完整表格HTML
+  const tableHtml = `<table>
+${rows}
+</table>`;
+
+  // 复制到剪贴板
+  await copyToClipboard(tableHtml);
+}
+
+/**
+ * 构建带分隔的表格HTML结构并复制到剪贴板（每3条数据插入一个空白行）
+ * @param results 采集结果数据
+ */
+async function copyTableStructureWithSeparator(results: SellTryInfoResult[]): Promise<void> {
+  // 构建表格行，每3条数据插入一个空白分隔行
+  const rows: string[] = [];
+  
+  results.forEach((item, index) => {
+    // 添加当前数据行
+    rows.push(`  <tr>
+    <td><img src='${item.imgUrl}' width='200' height='200'></td>
+    <td>${item.itemId}</td>
+    <td>${item.itemName}</td>
+    <td>${item.text}</td>
+  </tr>`);
+    
+    // 每3条数据后插入一个空白行（除了最后一条）
+    if ((index + 1) % 3 === 0 && index < results.length - 1) {
+      rows.push(`  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>`);
+    }
+  });
+
+  // 构建完整表格HTML
+  const tableHtml = `<table>
+${rows.join("\n")}
+</table>`;
+
+  // 复制到剪贴板
+  await copyToClipboard(tableHtml);
+}
+
 /**
  * 创建采集进度遮罩层
  * @returns 遮罩层元素、进度更新函数和取消函数
@@ -244,17 +431,19 @@ export function showResultsTable(results: SellTryInfoResult[]): void {
     fontSize: "14px",
   });
 
-  // 表头
+  // 表头 - 4列：图片、商品ID、商品标题、分享链接
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
-  ["序号", "商品图片", "商品ID", "商品名称", "分享链接", "操作"].forEach((text) => {
+  ["商品图片", "商品ID", "商品标题", "分享链接"].forEach((text) => {
     const th = document.createElement("th");
     th.textContent = text;
     Object.assign(th.style, {
       border: "1px solid #ddd",
-      padding: "8px",
+      padding: "12px 16px",
       textAlign: "left",
       backgroundColor: "#f5f5f5",
+      fontWeight: "600",
+      color: "#333",
     });
     headerRow.appendChild(th);
   });
@@ -263,26 +452,36 @@ export function showResultsTable(results: SellTryInfoResult[]): void {
 
   // 表体
   const tbody = document.createElement("tbody");
+  
+  // 存储数据映射，用于事件委托中查找对应项
+  const dataMap = new Map<number, SellTryInfoResult>();
+  
   results.forEach((item, index) => {
     const tr = document.createElement("tr");
-
-    // 序号
-    const tdIndex = document.createElement("td");
-    tdIndex.textContent = String(index + 1);
-    Object.assign(tdIndex.style, { border: "1px solid #ddd", padding: "8px" });
-    tr.appendChild(tdIndex);
+    tr.dataset.index = String(index);
+    dataMap.set(index, item);
 
     // 商品图片
     const tdImg = document.createElement("td");
-    tdImg.style.border = "1px solid #ddd";
+    Object.assign(tdImg.style, {
+      border: "1px solid #ddd",
+      padding: "8px",
+      textAlign: "center",
+    });
+    tdImg.dataset.type = "image";
     if (item.imgUrl) {
       const img = document.createElement("img");
       img.src = item.imgUrl;
       Object.assign(img.style, {
-        width: "50px",
-        height: "50px",
+        width: "60px",
+        height: "60px",
         objectFit: "cover",
+        borderRadius: "4px",
+        cursor: "pointer",
+        border: "2px solid transparent",
+        transition: "border-color 0.2s",
       });
+      img.title = "点击复制图片到剪贴板";
       tdImg.appendChild(img);
     }
     tr.appendChild(tdImg);
@@ -290,10 +489,22 @@ export function showResultsTable(results: SellTryInfoResult[]): void {
     // 商品ID
     const tdId = document.createElement("td");
     tdId.textContent = item.itemId;
-    Object.assign(tdId.style, { border: "1px solid #ddd", padding: "8px", wordBreak: "break-all" });
+    Object.assign(tdId.style, {
+      border: "1px solid #ddd",
+      padding: "8px",
+      wordBreak: "break-all",
+      cursor: "pointer",
+      maxWidth: "150px",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      transition: "background 0.2s",
+    });
+    tdId.title = "点击复制商品ID";
+    tdId.dataset.type = "item-id";
     tr.appendChild(tdId);
 
-    // 商品名称
+    // 商品标题
     const tdName = document.createElement("td");
     tdName.textContent = item.itemName;
     Object.assign(tdName.style, {
@@ -303,7 +514,11 @@ export function showResultsTable(results: SellTryInfoResult[]): void {
       overflow: "hidden",
       textOverflow: "ellipsis",
       whiteSpace: "nowrap",
+      cursor: "pointer",
+      transition: "background 0.2s",
     });
+    tdName.title = "点击复制商品标题";
+    tdName.dataset.type = "item-name";
     tr.appendChild(tdName);
 
     // 分享链接
@@ -316,76 +531,183 @@ export function showResultsTable(results: SellTryInfoResult[]): void {
       overflow: "hidden",
       textOverflow: "ellipsis",
       whiteSpace: "nowrap",
-    });
-    tr.appendChild(tdText);
-
-    // 操作按钮
-    const tdAction = document.createElement("td");
-    Object.assign(tdAction.style, { border: "1px solid #ddd", padding: "8px" });
-    const copyBtn = document.createElement("button");
-    copyBtn.textContent = "复制链接";
-    Object.assign(copyBtn.style, {
-      padding: "4px 8px",
       cursor: "pointer",
-      backgroundColor: "#1890ff",
-      color: "#fff",
-      border: "none",
-      borderRadius: "4px",
+      color: "#1890ff",
+      transition: "background 0.2s",
     });
-    copyBtn.onclick = async () => {
-      if (item.text) {
-        await copyToClipboard(item.text);
-        alert("复制成功！");
-      }
-    };
-    tdAction.appendChild(copyBtn);
-    tr.appendChild(tdAction);
+    tdText.title = "点击复制分享链接";
+    tdText.dataset.type = "share-text";
+    tr.appendChild(tdText);
 
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
+
+  // 使用事件委托处理表体点击事件
+  tbody.addEventListener("click", async (event) => {
+    const target = event.target as HTMLElement;
+    const td = target.closest("td") as HTMLElement;
+    if (!td) return;
+
+    const tr = td.closest("tr") as HTMLTableRowElement;
+    if (!tr) return;
+
+    const index = parseInt(tr.dataset.index || "-1", 10);
+    const item = dataMap.get(index);
+    if (!item) return;
+
+    const type = td.dataset.type;
+
+    try {
+      if (type === "image") {
+        // 图片点击：复制实际图片到剪贴板
+        const success = await copyImageToClipboard(item.imgUrl);
+        if (success) {
+          showToast("图片已复制到剪贴板");
+        } else {
+          showToast("图片复制失败，请重试");
+        }
+      } else if (type === "item-id") {
+        // 商品ID点击：复制ID文本
+        await copyToClipboard(item.itemId);
+        showToast("商品ID已复制到剪贴板");
+      } else if (type === "item-name") {
+        // 商品标题点击：复制标题文本
+        await copyToClipboard(item.itemName);
+        showToast("商品标题已复制到剪贴板");
+      } else if (type === "share-text") {
+        // 分享链接点击：复制链接文本
+        if (item.text) {
+          await copyToClipboard(item.text);
+          showToast("分享链接已复制到剪贴板");
+        } else {
+          showToast("分享链接为空，无法复制");
+        }
+      }
+    } catch (e) {
+      console.error("复制失败:", e);
+      showToast("复制失败，请重试");
+    }
+  });
+
+  // 添加鼠标悬停效果样式
+  const style = document.createElement("style");
+  style.textContent = `
+    #sell-try-info-results-modal table tbody tr:hover {
+      background: #f9f9f9;
+    }
+    #sell-try-info-results-modal table td[data-type="image"] img:hover {
+      border-color: #1890ff;
+    }
+    #sell-try-info-results-modal table td[data-type="item-id"]:hover,
+    #sell-try-info-results-modal table td[data-type="item-name"]:hover,
+    #sell-try-info-results-modal table td[data-type="share-text"]:hover {
+      background: #e6f7ff;
+    }
+  `;
+  document.head.appendChild(style);
+
   content.appendChild(title);
   content.appendChild(table);
+
+  // 创建底部按钮容器
+  const buttonContainer = document.createElement("div");
+  Object.assign(buttonContainer.style, {
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    padding: "12px 0 0 0",
+    marginTop: "16px",
+    borderTop: "1px solid #eee",
+    gap: "10px",
+  });
+
+  // 按钮样式
+  const buttonStyle = {
+    padding: "8px 16px",
+    cursor: "pointer",
+    color: "#fff",
+    border: "none",
+    borderRadius: "4px",
+    fontSize: "14px",
+    transition: "background 0.2s",
+  };
 
   // 关闭按钮
   const closeBtn = document.createElement("button");
   closeBtn.textContent = "关闭";
   Object.assign(closeBtn.style, {
-    marginTop: "16px",
-    padding: "8px 16px",
-    cursor: "pointer",
+    ...buttonStyle,
     backgroundColor: "#666",
-    color: "#fff",
-    border: "none",
-    borderRadius: "4px",
   });
+  closeBtn.onmouseenter = () => { closeBtn.style.backgroundColor = "#787878"; };
+  closeBtn.onmouseleave = () => { closeBtn.style.backgroundColor = "#666"; };
   closeBtn.onclick = () => modal.remove();
-  content.appendChild(closeBtn);
+  buttonContainer.appendChild(closeBtn);
 
-  // 复制全部按钮
-  const copyAllBtn = document.createElement("button");
-  copyAllBtn.textContent = "复制全部链接";
-  Object.assign(copyAllBtn.style, {
-    marginTop: "16px",
-    marginLeft: "8px",
-    padding: "8px 16px",
-    cursor: "pointer",
-    backgroundColor: "#52c41a",
-    color: "#fff",
-    border: "none",
-    borderRadius: "4px",
+  // 复制JSON信息按钮
+  const copyJsonBtn = document.createElement("button");
+  copyJsonBtn.textContent = "复制JSON信息";
+  Object.assign(copyJsonBtn.style, {
+    ...buttonStyle,
+    backgroundColor: "#722ed1",
   });
-  copyAllBtn.onclick = async () => {
-    const allTexts = results
-      .map((r) => r.text)
-      .filter((t) => t)
-      .join("\n\n");
-    if (allTexts) {
-      await copyToClipboard(allTexts);
-      alert("全部链接已复制到剪贴板！");
-    }
+  copyJsonBtn.onmouseenter = () => { copyJsonBtn.style.backgroundColor = "#9254de"; };
+  copyJsonBtn.onmouseleave = () => { copyJsonBtn.style.backgroundColor = "#722ed1"; };
+  copyJsonBtn.onclick = async () => {
+    const json = JSON.stringify(results, null, 2);
+    await copyToClipboard(json);
+    showToast("JSON信息已复制到剪贴板");
   };
-  content.appendChild(copyAllBtn);
+  buttonContainer.appendChild(copyJsonBtn);
+
+  // 复制table结构按钮
+  const copyTableBtn = document.createElement("button");
+  copyTableBtn.textContent = "复制table结构";
+  Object.assign(copyTableBtn.style, {
+    ...buttonStyle,
+    backgroundColor: "#1890ff",
+  });
+  copyTableBtn.onmouseenter = () => { copyTableBtn.style.backgroundColor = "#40a9ff"; };
+  copyTableBtn.onmouseleave = () => { copyTableBtn.style.backgroundColor = "#1890ff"; };
+  copyTableBtn.onclick = async () => {
+    await copyTableStructure(results);
+    showToast("table结构已复制到剪贴板");
+  };
+  buttonContainer.appendChild(copyTableBtn);
+
+  // 复制带间隔的table结构按钮
+  const copyTableWithSeparatorBtn = document.createElement("button");
+  copyTableWithSeparatorBtn.textContent = "复制带间隔的table结构";
+  Object.assign(copyTableWithSeparatorBtn.style, {
+    ...buttonStyle,
+    backgroundColor: "#13c2c2",
+  });
+  copyTableWithSeparatorBtn.onmouseenter = () => { copyTableWithSeparatorBtn.style.backgroundColor = "#36cfc9"; };
+  copyTableWithSeparatorBtn.onmouseleave = () => { copyTableWithSeparatorBtn.style.backgroundColor = "#13c2c2"; };
+  copyTableWithSeparatorBtn.onclick = async () => {
+    await copyTableStructureWithSeparator(results);
+    showToast("带间隔的table结构已复制到剪贴板");
+  };
+  buttonContainer.appendChild(copyTableWithSeparatorBtn);
+
+  // 复制商品ID按钮
+  const copyItemIdsBtn = document.createElement("button");
+  copyItemIdsBtn.textContent = "复制商品ID";
+  Object.assign(copyItemIdsBtn.style, {
+    ...buttonStyle,
+    backgroundColor: "#52c41a",
+  });
+  copyItemIdsBtn.onmouseenter = () => { copyItemIdsBtn.style.backgroundColor = "#73d13d"; };
+  copyItemIdsBtn.onmouseleave = () => { copyItemIdsBtn.style.backgroundColor = "#52c41a"; };
+  copyItemIdsBtn.onclick = async () => {
+    const allItemIds = results.map(r => r.itemId).join("\n");
+    await copyToClipboard(allItemIds);
+    showToast("所有商品ID已复制到剪贴板");
+  };
+  buttonContainer.appendChild(copyItemIdsBtn);
+
+  content.appendChild(buttonContainer);
 
   modal.appendChild(content);
 

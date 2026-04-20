@@ -3,3 +3,5 @@ src/node_modules/
 src/Tmall-MySellerEnhance/action/getItemId/data.json
 src/Tmall-MySellerEnhance/action/getItemId/element.html
 src/Tmall-MySellerEnhance/action/goodsListInfo/element.html
+src/Tmall-MySellerEnhance/action/sellTryShareCatch/pageElement.html
+src/Tmall-MySellerEnhance/action/sellTryShareCatch/pageElement2.html

@@ -37,4 +37,18 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
+/**
+ * 等待指定的时间（毫秒）
+ * @param ms 毫秒数
+ */
+export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * 清理字符串（去除首尾空白）
+ * @param str 要清理的字符串
+ */
+export function trim(str: string | null | undefined): string {
+  return str?.trim() ?? "";
+}
+
 // #endregion

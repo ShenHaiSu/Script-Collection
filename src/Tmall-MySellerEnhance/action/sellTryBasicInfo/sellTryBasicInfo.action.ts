@@ -17,7 +17,7 @@ import {
   extractItemInfoFromRow,
   sleep,
   DELAY_CONFIG,
-} from "@/Tmall-MySellerEnhance/helper";
+} from "@/Tmall-MySellerEnhance/action/sellTryHelper";
 import { showBasicInfoResultsTable, createBasicInfoProgressOverlay } from "@/Tmall-MySellerEnhance/ui/component/sellTryBasicInfo.ui";
 import type { SellTryBasicInfoResult } from "@/Tmall-MySellerEnhance/ui/component/sellTryBasicInfo.ui";
 

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫后台订单信息增强
-// @version      2026.04.20.23.26.09
+// @version      2026.04.20.23.41.15
 // @description  增强千牛天猫后台的已卖出宝贝的订单信息，展示更多实用性的信息内容。
 // @author       DaoLuoLTS
 // @match        https://myseller.taobao.com/*
@@ -626,29 +626,6 @@
   var drawerManager = new DrawerManager();
 
   // Tmall-MySellerEnhance/helper.ts
-  var COMMON_SELECTORS = {
-    // 表格相关
-    tableBody: "table > tbody",
-    tableRow: "tr[data-row-key]",
-    tableRowKey: "data-row-key",
-    // 商品信息
-    itemImage: "td img",
-    itemLink: "a",
-    itemId: "data-row-key",
-    // 操作按钮
-    actionButton: "td:last-child button",
-    // 分页器
-    pagination: "ul.tbd-pagination",
-    paginationNext: "li.tbd-pagination-next",
-    paginationNextDisabled: "li.tbd-pagination-next.tbd-pagination-disabled",
-    paginationItem: "li.tbd-pagination-item",
-    paginationItemActive: "li.tbd-pagination-item-active"
-  };
-  var DELAY_CONFIG = {
-    BUTTON_CLICK: 800,
-    DRAWER_OPEN: 1e3,
-    PAGE_LOAD: 1500
-  };
   async function copyToClipboard(text) {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -669,96 +646,6 @@
     } catch (error) {
       console.error("复制到剪贴板失败:", error);
       return false;
-    }
-  }
-  var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  function trim(str) {
-    return str?.trim() ?? "";
-  }
-  function getPaginationInfo() {
-    const pagination = document.querySelector(COMMON_SELECTORS.pagination);
-    if (!pagination) {
-      console.warn("未找到分页器");
-      return { currentPage: 1, totalPages: 1, hasNextPage: false };
-    }
-    const activeItem = pagination.querySelector(COMMON_SELECTORS.paginationItemActive);
-    const currentPage = activeItem ? parseInt(activeItem.textContent?.trim() || "1", 10) : 1;
-    const pageItems = Array.from(pagination.querySelectorAll(COMMON_SELECTORS.paginationItem));
-    const pageNumbers = pageItems.map((item) => {
-      const text = item.textContent?.trim();
-      const num = parseInt(text || "0", 10);
-      return num > 0 ? num : 0;
-    }).filter((num) => num > 0);
-    const totalPages = pageNumbers.length > 0 ? Math.max(...pageNumbers) : 1;
-    const nextButton = pagination.querySelector(COMMON_SELECTORS.paginationNextDisabled);
-    const hasNextPage = !nextButton;
-    console.log(`分页信息: 当前第${currentPage}页, 共${totalPages}页, 是否有下一页: ${hasNextPage}`);
-    return { currentPage, totalPages, hasNextPage };
-  }
-  async function clickNextPage() {
-    const pagination = document.querySelector(COMMON_SELECTORS.pagination);
-    if (!pagination) {
-      console.warn("未找到分页器");
-      return false;
-    }
-    const nextButton = pagination.querySelector(
-      `${COMMON_SELECTORS.paginationNext}:not(.tbd-pagination-disabled) button`
-    );
-    if (!nextButton) {
-      console.warn("未找到可点击的下一页按钮");
-      return false;
-    }
-    try {
-      nextButton.click();
-      await sleep(DELAY_CONFIG.PAGE_LOAD);
-      return true;
-    } catch (error) {
-      console.error("点击下一页失败:", error);
-      return false;
-    }
-  }
-  async function waitForPageLoad() {
-    await sleep(DELAY_CONFIG.PAGE_LOAD);
-    try {
-      getTableRows();
-      return true;
-    } catch {
-      console.warn("页面数据未加载完成，重试中...");
-      await sleep(DELAY_CONFIG.PAGE_LOAD);
-      try {
-        getTableRows();
-        return true;
-      } catch {
-        return false;
-      }
-    }
-  }
-  function getTableRows() {
-    const tbody = document.querySelector(COMMON_SELECTORS.tableBody);
-    if (!tbody) {
-      throw new Error("未找到表格数据 (table > tbody)");
-    }
-    const trs = Array.from(tbody.querySelectorAll(COMMON_SELECTORS.tableRow));
-    if (trs.length === 0) {
-      throw new Error("未找到有效的商品行数据");
-    }
-    return trs;
-  }
-  function extractItemInfoFromRow(tr) {
-    try {
-      const img = tr.querySelector(COMMON_SELECTORS.itemImage);
-      const imgUrl = img?.src ?? "";
-      const itemId = tr.getAttribute(COMMON_SELECTORS.tableRowKey) ?? "";
-      const itemLink = tr.querySelector(COMMON_SELECTORS.itemLink);
-      const itemName = trim(itemLink?.innerText);
-      if (!itemId) {
-        console.warn("商品行缺少 data-row-key 属性", tr);
-        return null;
-      }
-      return { imgUrl, itemId, itemName };
-    } catch (error) {
-      console.error("提取商品信息失败:", error);
-      return null;
     }
   }
 
@@ -1837,16 +1724,58 @@ ${rows.join("\n")}
     Object.assign(content.style, {
       backgroundColor: "#fff",
       borderRadius: "8px",
-      padding: "20px",
-      maxWidth: "90%",
-      maxHeight: "90vh",
-      overflow: "auto"
+      width: "90%",
+      maxWidth: "1200px",
+      height: "80vh",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden"
+    });
+    const header = document.createElement("div");
+    Object.assign(header.style, {
+      padding: "16px 20px",
+      borderBottom: "1px solid #eee",
+      flexShrink: "0",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center"
     });
     const title = document.createElement("h2");
     title.textContent = `采集完成，共 ${results.length} 条数据`;
     Object.assign(title.style, {
-      marginTop: "0",
-      marginBottom: "16px"
+      margin: "0",
+      fontSize: "18px",
+      fontWeight: "600",
+      color: "#333"
+    });
+    header.appendChild(title);
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "×";
+    Object.assign(closeBtn.style, {
+      width: "32px",
+      height: "32px",
+      cursor: "pointer",
+      backgroundColor: "transparent",
+      border: "none",
+      borderRadius: "4px",
+      fontSize: "20px",
+      color: "#999",
+      transition: "background 0.2s"
+    });
+    closeBtn.onmouseenter = () => {
+      closeBtn.style.backgroundColor = "#f0f0f0";
+    };
+    closeBtn.onmouseleave = () => {
+      closeBtn.style.backgroundColor = "transparent";
+    };
+    closeBtn.onclick = () => modal.remove();
+    header.appendChild(closeBtn);
+    content.appendChild(header);
+    const tableContainer = document.createElement("div");
+    Object.assign(tableContainer.style, {
+      flex: "1",
+      overflow: "auto",
+      padding: "0"
     });
     const table = document.createElement("table");
     Object.assign(table.style, {
@@ -1865,7 +1794,10 @@ ${rows.join("\n")}
         textAlign: "left",
         backgroundColor: "#f5f5f5",
         fontWeight: "600",
-        color: "#333"
+        color: "#333",
+        position: "sticky",
+        top: "0",
+        zIndex: "1"
       });
       headerRow.appendChild(th);
     });
@@ -1950,6 +1882,7 @@ ${rows.join("\n")}
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
+    tableContainer.appendChild(table);
     tbody.addEventListener("click", async (event) => {
       const target = event.target;
       const td = target.closest("td");
@@ -2002,17 +1935,17 @@ ${rows.join("\n")}
     }
   `;
     document.head.appendChild(style);
-    content.appendChild(title);
-    content.appendChild(table);
-    const buttonContainer = document.createElement("div");
-    Object.assign(buttonContainer.style, {
+    content.appendChild(tableContainer);
+    const footer = document.createElement("div");
+    Object.assign(footer.style, {
+      padding: "12px 20px",
+      borderTop: "1px solid #eee",
+      flexShrink: "0",
       display: "flex",
       justifyContent: "flex-end",
       alignItems: "center",
-      padding: "12px 0 0 0",
-      marginTop: "16px",
-      borderTop: "1px solid #eee",
-      gap: "10px"
+      gap: "10px",
+      backgroundColor: "#fafafa"
     });
     const buttonStyle = {
       padding: "8px 16px",
@@ -2023,20 +1956,6 @@ ${rows.join("\n")}
       fontSize: "14px",
       transition: "background 0.2s"
     };
-    const closeBtn = document.createElement("button");
-    closeBtn.textContent = "关闭";
-    Object.assign(closeBtn.style, {
-      ...buttonStyle,
-      backgroundColor: "#666"
-    });
-    closeBtn.onmouseenter = () => {
-      closeBtn.style.backgroundColor = "#787878";
-    };
-    closeBtn.onmouseleave = () => {
-      closeBtn.style.backgroundColor = "#666";
-    };
-    closeBtn.onclick = () => modal.remove();
-    buttonContainer.appendChild(closeBtn);
     const copyJsonBtn = document.createElement("button");
     copyJsonBtn.textContent = "复制JSON信息";
     Object.assign(copyJsonBtn.style, {
@@ -2054,7 +1973,7 @@ ${rows.join("\n")}
       await copyToClipboard(json);
       showToast("JSON信息已复制到剪贴板");
     };
-    buttonContainer.appendChild(copyJsonBtn);
+    footer.appendChild(copyJsonBtn);
     const copyTableBtn = document.createElement("button");
     copyTableBtn.textContent = "复制table结构";
     Object.assign(copyTableBtn.style, {
@@ -2071,7 +1990,7 @@ ${rows.join("\n")}
       await copyTableStructure(results);
       showToast("table结构已复制到剪贴板");
     };
-    buttonContainer.appendChild(copyTableBtn);
+    footer.appendChild(copyTableBtn);
     const copyTableWithSeparatorBtn = document.createElement("button");
     copyTableWithSeparatorBtn.textContent = "复制带间隔的table结构";
     Object.assign(copyTableWithSeparatorBtn.style, {
@@ -2088,7 +2007,7 @@ ${rows.join("\n")}
       await copyTableStructureWithSeparator(results);
       showToast("带间隔的table结构已复制到剪贴板");
     };
-    buttonContainer.appendChild(copyTableWithSeparatorBtn);
+    footer.appendChild(copyTableWithSeparatorBtn);
     const copyItemIdsBtn = document.createElement("button");
     copyItemIdsBtn.textContent = "复制商品ID";
     Object.assign(copyItemIdsBtn.style, {
@@ -2106,13 +2025,148 @@ ${rows.join("\n")}
       await copyToClipboard(allItemIds);
       showToast("所有商品ID已复制到剪贴板");
     };
-    buttonContainer.appendChild(copyItemIdsBtn);
-    content.appendChild(buttonContainer);
+    footer.appendChild(copyItemIdsBtn);
+    content.appendChild(footer);
     modal.appendChild(content);
     modal.onclick = (e) => {
       if (e.target === modal) modal.remove();
     };
     document.body.appendChild(modal);
+  }
+
+  // Tmall-MySellerEnhance/action/sellTryHelper.ts
+  var COMMON_SELECTORS = {
+    // 表格相关
+    tableBody: "table > tbody",
+    tableRow: "tr[data-row-key]",
+    tableRowKey: "data-row-key",
+    // 商品信息
+    itemImage: "td img",
+    itemLink: "a",
+    itemId: "data-row-key",
+    // 操作按钮
+    actionButton: "td:last-child button",
+    // 分页器
+    pagination: "ul.tbd-pagination",
+    paginationNext: "li.tbd-pagination-next",
+    paginationNextDisabled: "li.tbd-pagination-next.tbd-pagination-disabled",
+    paginationItem: "li.tbd-pagination-item",
+    paginationItemActive: "li.tbd-pagination-item-active"
+  };
+  var DELAY_CONFIG = {
+    BUTTON_CLICK: 800,
+    DRAWER_OPEN: 1e3,
+    PAGE_LOAD: 1500
+  };
+  var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  function trim(str) {
+    return str?.trim() ?? "";
+  }
+  async function safeClickButton(button, delay = DELAY_CONFIG.BUTTON_CLICK) {
+    if (!button) {
+      console.warn("按钮元素不存在，跳过点击操作");
+      return false;
+    }
+    try {
+      button.click();
+      await sleep(delay);
+      return true;
+    } catch (error) {
+      console.error("点击按钮失败:", error);
+      return false;
+    }
+  }
+  function getPaginationInfo() {
+    const pagination = document.querySelector(COMMON_SELECTORS.pagination);
+    if (!pagination) {
+      console.warn("未找到分页器");
+      return { currentPage: 1, totalPages: 1, hasNextPage: false };
+    }
+    const activeItem = pagination.querySelector(COMMON_SELECTORS.paginationItemActive);
+    const currentPage = activeItem ? parseInt(activeItem.textContent?.trim() || "1", 10) : 1;
+    const pageItems = Array.from(pagination.querySelectorAll(COMMON_SELECTORS.paginationItem));
+    const pageNumbers = pageItems.map((item) => {
+      const text = item.textContent?.trim();
+      const num = parseInt(text || "0", 10);
+      return num > 0 ? num : 0;
+    }).filter((num) => num > 0);
+    const totalPages = pageNumbers.length > 0 ? Math.max(...pageNumbers) : 1;
+    const nextButton = pagination.querySelector(COMMON_SELECTORS.paginationNextDisabled);
+    const hasNextPage = !nextButton;
+    console.log(`分页信息: 当前第${currentPage}页, 共${totalPages}页, 是否有下一页: ${hasNextPage}`);
+    return { currentPage, totalPages, hasNextPage };
+  }
+  async function clickNextPage() {
+    const pagination = document.querySelector(COMMON_SELECTORS.pagination);
+    if (!pagination) {
+      console.warn("未找到分页器");
+      return false;
+    }
+    const nextButton = pagination.querySelector(
+      `${COMMON_SELECTORS.paginationNext}:not(.tbd-pagination-disabled) button`
+    );
+    if (!nextButton) {
+      console.warn("未找到可点击的下一页按钮");
+      return false;
+    }
+    try {
+      nextButton.click();
+      await sleep(DELAY_CONFIG.PAGE_LOAD);
+      return true;
+    } catch (error) {
+      console.error("点击下一页失败:", error);
+      return false;
+    }
+  }
+  async function waitForPageLoad() {
+    await sleep(DELAY_CONFIG.PAGE_LOAD);
+    try {
+      getTableRows();
+      return true;
+    } catch {
+      console.warn("页面数据未加载完成，重试中...");
+      await sleep(DELAY_CONFIG.PAGE_LOAD);
+      try {
+        getTableRows();
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  }
+  function getTableRows() {
+    const tbody = document.querySelector(COMMON_SELECTORS.tableBody);
+    if (!tbody) {
+      throw new Error("未找到表格数据 (table > tbody)");
+    }
+    const trs = Array.from(tbody.querySelectorAll(COMMON_SELECTORS.tableRow));
+    if (trs.length === 0) {
+      throw new Error("未找到有效的商品行数据");
+    }
+    return trs;
+  }
+  function extractItemInfoFromRow(tr) {
+    try {
+      const img = tr.querySelector(COMMON_SELECTORS.itemImage);
+      const imgUrl = img?.src ?? "";
+      const itemId = tr.getAttribute(COMMON_SELECTORS.tableRowKey) ?? "";
+      const itemLink = tr.querySelector(COMMON_SELECTORS.itemLink);
+      const itemName = trim(itemLink?.innerText);
+      if (!itemId) {
+        console.warn("商品行缺少 data-row-key 属性", tr);
+        return null;
+      }
+      return { imgUrl, itemId, itemName };
+    } catch (error) {
+      console.error("提取商品信息失败:", error);
+      return null;
+    }
+  }
+  function getActionButtonFromRow(tr) {
+    const tds = tr.querySelectorAll("td");
+    if (tds.length === 0) return null;
+    const lastTd = tds[tds.length - 1];
+    return lastTd?.querySelector("button") ?? null;
   }
 
   // Tmall-MySellerEnhance/action/sellTryShareCatch/sellTryShareCatch.action.ts
@@ -2139,107 +2193,12 @@ ${rows.join("\n")}
   };
   var dataStore = new DataStore();
   var SELECTORS = {
-    // 表格相关
-    tableBody: "table > tbody",
-    tableRow: "tr[data-row-key]",
-    tableRowKey: "data-row-key",
-    // 商品信息
-    itemImage: "td img",
-    itemLink: "a",
-    itemId: "data-row-key",
-    // 操作按钮
-    actionButton: "td:last-child button",
     // Tab 切换
     shareTab: "div.tbd-tabs-nav-wrap div[data-node-key='item']",
     // 抽屉弹窗
     drawerContent: "div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div",
-    drawerButtons: "div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div > button",
-    // 分页器
-    pagination: "ul.tbd-pagination",
-    paginationNext: "li.tbd-pagination-next",
-    paginationNextDisabled: "li.tbd-pagination-next.tbd-pagination-disabled",
-    paginationItem: "li.tbd-pagination-item",
-    paginationItemActive: "li.tbd-pagination-item-active"
+    drawerButtons: "div.tbd-drawer-content-wrapper > div.tbd-drawer-section > div.tbd-drawer-body > div > button"
   };
-  var BUTTON_CLICK_DELAY = 800;
-  var DRAWER_OPEN_DELAY = 1e3;
-  var PAGE_LOAD_DELAY = 1500;
-  function getPaginationInfo2() {
-    const pagination = document.querySelector(SELECTORS.pagination);
-    if (!pagination) {
-      console.warn("未找到分页器");
-      return { currentPage: 1, totalPages: 1, hasNextPage: false };
-    }
-    const activeItem = pagination.querySelector(SELECTORS.paginationItemActive);
-    const currentPage = activeItem ? parseInt(activeItem.textContent?.trim() || "1", 10) : 1;
-    const pageItems = Array.from(pagination.querySelectorAll(SELECTORS.paginationItem));
-    const pageNumbers = pageItems.map((item) => {
-      const text = item.textContent?.trim();
-      const num = parseInt(text || "0", 10);
-      return num > 0 ? num : 0;
-    }).filter((num) => num > 0);
-    const totalPages = pageNumbers.length > 0 ? Math.max(...pageNumbers) : 1;
-    const nextButton = pagination.querySelector(SELECTORS.paginationNextDisabled);
-    const hasNextPage = !nextButton;
-    console.log(`分页信息: 当前第${currentPage}页, 共${totalPages}页, 是否有下一页: ${hasNextPage}`);
-    return { currentPage, totalPages, hasNextPage };
-  }
-  async function clickNextPage2() {
-    const pagination = document.querySelector(SELECTORS.pagination);
-    if (!pagination) {
-      console.warn("未找到分页器");
-      return false;
-    }
-    const nextButton = pagination.querySelector(
-      `${SELECTORS.paginationNext}:not(.tbd-pagination-disabled) button`
-    );
-    if (!nextButton) {
-      console.warn("未找到可点击的下一页按钮");
-      return false;
-    }
-    try {
-      nextButton.click();
-      await sleep2(PAGE_LOAD_DELAY);
-      return true;
-    } catch (error) {
-      console.error("点击下一页失败:", error);
-      return false;
-    }
-  }
-  async function waitForPageLoad2() {
-    await sleep2(PAGE_LOAD_DELAY);
-    try {
-      getTableRows2();
-      return true;
-    } catch {
-      console.warn("页面数据未加载完成，重试中...");
-      await sleep2(PAGE_LOAD_DELAY);
-      try {
-        getTableRows2();
-        return true;
-      } catch {
-        return false;
-      }
-    }
-  }
-  var sleep2 = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  function trim2(str) {
-    return str?.trim() ?? "";
-  }
-  async function safeClickButton(button, delay = BUTTON_CLICK_DELAY) {
-    if (!button) {
-      console.warn("按钮元素不存在，跳过点击操作");
-      return false;
-    }
-    try {
-      button.click();
-      await sleep2(delay);
-      return true;
-    } catch (error) {
-      console.error("点击按钮失败:", error);
-      return false;
-    }
-  }
   async function readFromClipboard() {
     try {
       const text = await navigator.clipboard.readText();
@@ -2266,39 +2225,10 @@ ${rows.join("\n")}
       }
     }
   }
-  function extractItemInfoFromRow2(tr) {
-    try {
-      const img = tr.querySelector(SELECTORS.itemImage);
-      const imgUrl = img?.src ?? "";
-      const itemId = tr.getAttribute(SELECTORS.tableRowKey) ?? "";
-      const itemLink = tr.querySelector(SELECTORS.itemLink);
-      const itemName = trim2(itemLink?.innerText);
-      if (!itemId) {
-        console.warn("商品行缺少 data-row-key 属性", tr);
-        return null;
-      }
-      return { imgUrl, text: "", itemId, itemName };
-    } catch (error) {
-      console.error("提取商品信息失败:", error);
-      return null;
-    }
-  }
-  function getActionButtonFromRow(tr) {
-    const tds = tr.querySelectorAll("td");
-    if (tds.length === 0) return null;
-    const lastTd = tds[tds.length - 1];
-    return lastTd?.querySelector("button") ?? null;
-  }
-  function getTableRows2() {
-    const tbody = document.querySelector(SELECTORS.tableBody);
-    if (!tbody) {
-      throw new Error("未找到表格数据 (table > tbody)");
-    }
-    const trs = Array.from(tbody.querySelectorAll(SELECTORS.tableRow));
-    if (trs.length === 0) {
-      throw new Error("未找到有效的商品行数据");
-    }
-    return trs;
+  function extractItemInfoFromRowLocal(tr) {
+    const baseInfo = extractItemInfoFromRow(tr);
+    if (!baseInfo) return null;
+    return { ...baseInfo, text: "" };
   }
   async function switchToShareTab() {
     const tabs = document.querySelectorAll(SELECTORS.shareTab);
@@ -2308,7 +2238,7 @@ ${rows.join("\n")}
     }
     try {
       tabs[0].click();
-      await sleep2(BUTTON_CLICK_DELAY);
+      await sleep(DELAY_CONFIG.BUTTON_CLICK);
       return true;
     } catch (error) {
       console.error("切换分享 tab 失败:", error);
@@ -2323,7 +2253,7 @@ ${rows.join("\n")}
     }
     const lastDiv = drawerDivs[drawerDivs.length - 1];
     const generateButton = lastDiv.querySelector("button");
-    return await safeClickButton(generateButton, BUTTON_CLICK_DELAY);
+    return await safeClickButton(generateButton, DELAY_CONFIG.BUTTON_CLICK);
   }
   async function closeDrawer() {
     const buttonList = document.querySelectorAll(SELECTORS.drawerButtons);
@@ -2331,13 +2261,13 @@ ${rows.join("\n")}
       console.warn("未找到足够的关闭按钮");
       return false;
     }
-    return await safeClickButton(buttonList[1], BUTTON_CLICK_DELAY);
+    return await safeClickButton(buttonList[1], DELAY_CONFIG.BUTTON_CLICK);
   }
   async function waitForDrawerOpen() {
-    await sleep2(DRAWER_OPEN_DELAY);
+    await sleep(DELAY_CONFIG.DRAWER_OPEN);
   }
   async function handleSellTryInfo() {
-    const paginationInfo = getPaginationInfo2();
+    const paginationInfo = getPaginationInfo();
     const { currentPage, totalPages, hasNextPage } = paginationInfo;
     let pagesToFetch = 0;
     if (hasNextPage || totalPages > 1) {
@@ -2401,7 +2331,7 @@ ${rows.join("\n")}
           } else {
             updateProgress(0, 1, "正在获取表格数据...");
           }
-          tableRows = getTableRows2();
+          tableRows = getTableRows();
         } catch (error) {
           console.error("获取表格数据失败:", error);
           alert(error instanceof Error ? error.message : "获取表格数据失败");
@@ -2432,7 +2362,7 @@ ${rows.join("\n")}
             updateProgress(i, totalItems, `正在处理第 ${i + 1} 个商品...`);
           }
           try {
-            const itemInfo = extractItemInfoFromRow2(tr);
+            const itemInfo = extractItemInfoFromRowLocal(tr);
             if (!itemInfo) {
               console.warn("跳过无效商品行");
               continue;
@@ -2498,11 +2428,11 @@ ${JSON.stringify(failData, null, 2)}`);
         }
         if (pageIndex < totalPagesToFetch - 1) {
           console.log(`正在跳转到第 ${pageIndex + 2} 页...`);
-          if (!await clickNextPage2()) {
+          if (!await clickNextPage()) {
             console.warn("翻页失败，停止采集");
             break;
           }
-          if (!await waitForPageLoad2()) {
+          if (!await waitForPageLoad()) {
             console.warn("页面加载失败，停止采集");
             break;
           }

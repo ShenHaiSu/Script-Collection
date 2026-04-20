@@ -629,23 +629,68 @@ export function showResultsTable(results: SellTryInfoResult[]): void {
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
   });
 
-  // 创建内容容器
+  // 创建内容容器 - 使用 flex 布局实现固定 header/footer
   const content = document.createElement("div");
   Object.assign(content.style, {
     backgroundColor: "#fff",
     borderRadius: "8px",
-    padding: "20px",
-    maxWidth: "90%",
-    maxHeight: "90vh",
-    overflow: "auto",
+    width: "90%",
+    maxWidth: "1200px",
+    height: "80vh",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+  });
+
+  // ===== Header 部分（固定不滚动）=====
+  const header = document.createElement("div");
+  Object.assign(header.style, {
+    padding: "16px 20px",
+    borderBottom: "1px solid #eee",
+    flexShrink: "0",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
   });
 
   // 创建标题
   const title = document.createElement("h2");
   title.textContent = `采集完成，共 ${results.length} 条数据`;
   Object.assign(title.style, {
-    marginTop: "0",
-    marginBottom: "16px",
+    margin: "0",
+    fontSize: "18px",
+    fontWeight: "600",
+    color: "#333",
+  });
+  header.appendChild(title);
+
+  // 关闭按钮（放在 header 右侧）
+  const closeBtn = document.createElement("button");
+  closeBtn.textContent = "×";
+  Object.assign(closeBtn.style, {
+    width: "32px",
+    height: "32px",
+    cursor: "pointer",
+    backgroundColor: "transparent",
+    border: "none",
+    borderRadius: "4px",
+    fontSize: "20px",
+    color: "#999",
+    transition: "background 0.2s",
+  });
+  closeBtn.onmouseenter = () => { closeBtn.style.backgroundColor = "#f0f0f0"; };
+  closeBtn.onmouseleave = () => { closeBtn.style.backgroundColor = "transparent"; };
+  closeBtn.onclick = () => modal.remove();
+  header.appendChild(closeBtn);
+
+  content.appendChild(header);
+
+  // ===== Table 容器（可滚动）=====
+  const tableContainer = document.createElement("div");
+  Object.assign(tableContainer.style, {
+    flex: "1",
+    overflow: "auto",
+    padding: "0",
   });
 
   // 创建表格
@@ -669,6 +714,9 @@ export function showResultsTable(results: SellTryInfoResult[]): void {
       backgroundColor: "#f5f5f5",
       fontWeight: "600",
       color: "#333",
+      position: "sticky",
+      top: "0",
+      zIndex: "1",
     });
     headerRow.appendChild(th);
   });
@@ -767,6 +815,7 @@ export function showResultsTable(results: SellTryInfoResult[]): void {
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
+  tableContainer.appendChild(table);
 
   // 使用事件委托处理表体点击事件
   tbody.addEventListener("click", async (event) => {
@@ -832,19 +881,19 @@ export function showResultsTable(results: SellTryInfoResult[]): void {
   `;
   document.head.appendChild(style);
 
-  content.appendChild(title);
-  content.appendChild(table);
+  content.appendChild(tableContainer);
 
-  // 创建底部按钮容器
-  const buttonContainer = document.createElement("div");
-  Object.assign(buttonContainer.style, {
+  // ===== Footer 部分（固定不滚动）=====
+  const footer = document.createElement("div");
+  Object.assign(footer.style, {
+    padding: "12px 20px",
+    borderTop: "1px solid #eee",
+    flexShrink: "0",
     display: "flex",
     justifyContent: "flex-end",
     alignItems: "center",
-    padding: "12px 0 0 0",
-    marginTop: "16px",
-    borderTop: "1px solid #eee",
     gap: "10px",
+    backgroundColor: "#fafafa",
   });
 
   // 按钮样式
@@ -857,18 +906,6 @@ export function showResultsTable(results: SellTryInfoResult[]): void {
     fontSize: "14px",
     transition: "background 0.2s",
   };
-
-  // 关闭按钮
-  const closeBtn = document.createElement("button");
-  closeBtn.textContent = "关闭";
-  Object.assign(closeBtn.style, {
-    ...buttonStyle,
-    backgroundColor: "#666",
-  });
-  closeBtn.onmouseenter = () => { closeBtn.style.backgroundColor = "#787878"; };
-  closeBtn.onmouseleave = () => { closeBtn.style.backgroundColor = "#666"; };
-  closeBtn.onclick = () => modal.remove();
-  buttonContainer.appendChild(closeBtn);
 
   // 复制JSON信息按钮
   const copyJsonBtn = document.createElement("button");
@@ -884,7 +921,7 @@ export function showResultsTable(results: SellTryInfoResult[]): void {
     await copyToClipboard(json);
     showToast("JSON信息已复制到剪贴板");
   };
-  buttonContainer.appendChild(copyJsonBtn);
+  footer.appendChild(copyJsonBtn);
 
   // 复制table结构按钮
   const copyTableBtn = document.createElement("button");
@@ -899,7 +936,7 @@ export function showResultsTable(results: SellTryInfoResult[]): void {
     await copyTableStructure(results);
     showToast("table结构已复制到剪贴板");
   };
-  buttonContainer.appendChild(copyTableBtn);
+  footer.appendChild(copyTableBtn);
 
   // 复制带间隔的table结构按钮
   const copyTableWithSeparatorBtn = document.createElement("button");
@@ -914,7 +951,7 @@ export function showResultsTable(results: SellTryInfoResult[]): void {
     await copyTableStructureWithSeparator(results);
     showToast("带间隔的table结构已复制到剪贴板");
   };
-  buttonContainer.appendChild(copyTableWithSeparatorBtn);
+  footer.appendChild(copyTableWithSeparatorBtn);
 
   // 复制商品ID按钮
   const copyItemIdsBtn = document.createElement("button");
@@ -930,9 +967,9 @@ export function showResultsTable(results: SellTryInfoResult[]): void {
     await copyToClipboard(allItemIds);
     showToast("所有商品ID已复制到剪贴板");
   };
-  buttonContainer.appendChild(copyItemIdsBtn);
+  footer.appendChild(copyItemIdsBtn);
 
-  content.appendChild(buttonContainer);
+  content.appendChild(footer);
 
   modal.appendChild(content);
 

@@ -18,6 +18,7 @@ import { handleCopyAllItemIds } from "@/Tmall-MySellerEnhance/action/copyAllItem
 import { handleCopyUniqueItemIds } from "@/Tmall-MySellerEnhance/action/copyUniqueItemIds/copyUniqueItemIds.action";
 import { handleGoodsListInfo } from "@/Tmall-MySellerEnhance/action/goodsListInfo/goodsListInfo.action";
 import { handleSellTryInfo } from "@/Tmall-MySellerEnhance/action/sellTryShareCatch/sellTryShareCatch.action";
+import { handleSellTryBasicInfo } from "@/Tmall-MySellerEnhance/action/sellTryBasicInfo/sellTryBasicInfo.action";
 
 // 从 match 目录导入 match 函数
 import { getItemIdMatch } from "@/Tmall-MySellerEnhance/match/getItemId.match";
@@ -25,9 +26,10 @@ import { copyAllItemIdsMatch } from "@/Tmall-MySellerEnhance/match/copyAllItemId
 import { copyUniqueItemIdsMatch } from "@/Tmall-MySellerEnhance/match/copyUniqueItemIds.match";
 import { goodsListInfoMatch } from "@/Tmall-MySellerEnhance/match/goodsListInfo.match";
 import { sellTryInfoMatch } from "@/Tmall-MySellerEnhance/match/sellTryInfo.match";
+import { sellTryBasicInfoMatch } from "@/Tmall-MySellerEnhance/match/sellTryBasicInfo.match";
 
 // 重新导出供外部使用
-export { handleGetItemId, handleCopyAllItemIds, handleCopyUniqueItemIds, handleGoodsListInfo, handleSellTryInfo };
+export { handleGetItemId, handleCopyAllItemIds, handleCopyUniqueItemIds, handleGoodsListInfo, handleSellTryInfo, handleSellTryBasicInfo };
 
 // 重新导出类型供外部使用
 export type { ActionConfig };
@@ -77,6 +79,16 @@ export const ACTION_BUTTONS: ActionConfig[] = [
     onClick: handleSellTryInfo,
     // match 函数：从 match 目录导入
     match: sellTryInfoMatch,
+    // 点击click之后关闭侧边抽屉
+    clickDrawerHide: true,
+  },
+  {
+    id: "sell-try-basic-info",
+    label: "批量获取基本信息",
+    icon: "📋",
+    onClick: handleSellTryBasicInfo,
+    // match 函数：从 match 目录导入
+    match: sellTryBasicInfoMatch,
     // 点击click之后关闭侧边抽屉
     clickDrawerHide: true,
   },

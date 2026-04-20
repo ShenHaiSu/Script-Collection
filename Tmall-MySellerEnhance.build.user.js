@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         天猫后台订单信息增强
-// @version      2026.04.20.23.09.57
+// @version      2026.04.20.23.26.09
 // @description  增强千牛天猫后台的已卖出宝贝的订单信息，展示更多实用性的信息内容。
 // @author       DaoLuoLTS
 // @match        https://myseller.taobao.com/*
@@ -626,6 +626,29 @@
   var drawerManager = new DrawerManager();
 
   // Tmall-MySellerEnhance/helper.ts
+  var COMMON_SELECTORS = {
+    // 表格相关
+    tableBody: "table > tbody",
+    tableRow: "tr[data-row-key]",
+    tableRowKey: "data-row-key",
+    // 商品信息
+    itemImage: "td img",
+    itemLink: "a",
+    itemId: "data-row-key",
+    // 操作按钮
+    actionButton: "td:last-child button",
+    // 分页器
+    pagination: "ul.tbd-pagination",
+    paginationNext: "li.tbd-pagination-next",
+    paginationNextDisabled: "li.tbd-pagination-next.tbd-pagination-disabled",
+    paginationItem: "li.tbd-pagination-item",
+    paginationItemActive: "li.tbd-pagination-item-active"
+  };
+  var DELAY_CONFIG = {
+    BUTTON_CLICK: 800,
+    DRAWER_OPEN: 1e3,
+    PAGE_LOAD: 1500
+  };
   async function copyToClipboard(text) {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -646,6 +669,96 @@
     } catch (error) {
       console.error("复制到剪贴板失败:", error);
       return false;
+    }
+  }
+  var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  function trim(str) {
+    return str?.trim() ?? "";
+  }
+  function getPaginationInfo() {
+    const pagination = document.querySelector(COMMON_SELECTORS.pagination);
+    if (!pagination) {
+      console.warn("未找到分页器");
+      return { currentPage: 1, totalPages: 1, hasNextPage: false };
+    }
+    const activeItem = pagination.querySelector(COMMON_SELECTORS.paginationItemActive);
+    const currentPage = activeItem ? parseInt(activeItem.textContent?.trim() || "1", 10) : 1;
+    const pageItems = Array.from(pagination.querySelectorAll(COMMON_SELECTORS.paginationItem));
+    const pageNumbers = pageItems.map((item) => {
+      const text = item.textContent?.trim();
+      const num = parseInt(text || "0", 10);
+      return num > 0 ? num : 0;
+    }).filter((num) => num > 0);
+    const totalPages = pageNumbers.length > 0 ? Math.max(...pageNumbers) : 1;
+    const nextButton = pagination.querySelector(COMMON_SELECTORS.paginationNextDisabled);
+    const hasNextPage = !nextButton;
+    console.log(`分页信息: 当前第${currentPage}页, 共${totalPages}页, 是否有下一页: ${hasNextPage}`);
+    return { currentPage, totalPages, hasNextPage };
+  }
+  async function clickNextPage() {
+    const pagination = document.querySelector(COMMON_SELECTORS.pagination);
+    if (!pagination) {
+      console.warn("未找到分页器");
+      return false;
+    }
+    const nextButton = pagination.querySelector(
+      `${COMMON_SELECTORS.paginationNext}:not(.tbd-pagination-disabled) button`
+    );
+    if (!nextButton) {
+      console.warn("未找到可点击的下一页按钮");
+      return false;
+    }
+    try {
+      nextButton.click();
+      await sleep(DELAY_CONFIG.PAGE_LOAD);
+      return true;
+    } catch (error) {
+      console.error("点击下一页失败:", error);
+      return false;
+    }
+  }
+  async function waitForPageLoad() {
+    await sleep(DELAY_CONFIG.PAGE_LOAD);
+    try {
+      getTableRows();
+      return true;
+    } catch {
+      console.warn("页面数据未加载完成，重试中...");
+      await sleep(DELAY_CONFIG.PAGE_LOAD);
+      try {
+        getTableRows();
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  }
+  function getTableRows() {
+    const tbody = document.querySelector(COMMON_SELECTORS.tableBody);
+    if (!tbody) {
+      throw new Error("未找到表格数据 (table > tbody)");
+    }
+    const trs = Array.from(tbody.querySelectorAll(COMMON_SELECTORS.tableRow));
+    if (trs.length === 0) {
+      throw new Error("未找到有效的商品行数据");
+    }
+    return trs;
+  }
+  function extractItemInfoFromRow(tr) {
+    try {
+      const img = tr.querySelector(COMMON_SELECTORS.itemImage);
+      const imgUrl = img?.src ?? "";
+      const itemId = tr.getAttribute(COMMON_SELECTORS.tableRowKey) ?? "";
+      const itemLink = tr.querySelector(COMMON_SELECTORS.itemLink);
+      const itemName = trim(itemLink?.innerText);
+      if (!itemId) {
+        console.warn("商品行缺少 data-row-key 属性", tr);
+        return null;
+      }
+      return { imgUrl, itemId, itemName };
+    } catch (error) {
+      console.error("提取商品信息失败:", error);
+      return null;
     }
   }
 
@@ -2051,7 +2164,7 @@ ${rows.join("\n")}
   var BUTTON_CLICK_DELAY = 800;
   var DRAWER_OPEN_DELAY = 1e3;
   var PAGE_LOAD_DELAY = 1500;
-  function getPaginationInfo() {
+  function getPaginationInfo2() {
     const pagination = document.querySelector(SELECTORS.pagination);
     if (!pagination) {
       console.warn("未找到分页器");
@@ -2071,7 +2184,7 @@ ${rows.join("\n")}
     console.log(`分页信息: 当前第${currentPage}页, 共${totalPages}页, 是否有下一页: ${hasNextPage}`);
     return { currentPage, totalPages, hasNextPage };
   }
-  async function clickNextPage() {
+  async function clickNextPage2() {
     const pagination = document.querySelector(SELECTORS.pagination);
     if (!pagination) {
       console.warn("未找到分页器");
@@ -2086,31 +2199,31 @@ ${rows.join("\n")}
     }
     try {
       nextButton.click();
-      await sleep(PAGE_LOAD_DELAY);
+      await sleep2(PAGE_LOAD_DELAY);
       return true;
     } catch (error) {
       console.error("点击下一页失败:", error);
       return false;
     }
   }
-  async function waitForPageLoad() {
-    await sleep(PAGE_LOAD_DELAY);
+  async function waitForPageLoad2() {
+    await sleep2(PAGE_LOAD_DELAY);
     try {
-      getTableRows();
+      getTableRows2();
       return true;
     } catch {
       console.warn("页面数据未加载完成，重试中...");
-      await sleep(PAGE_LOAD_DELAY);
+      await sleep2(PAGE_LOAD_DELAY);
       try {
-        getTableRows();
+        getTableRows2();
         return true;
       } catch {
         return false;
       }
     }
   }
-  var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  function trim(str) {
+  var sleep2 = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  function trim2(str) {
     return str?.trim() ?? "";
   }
   async function safeClickButton(button, delay = BUTTON_CLICK_DELAY) {
@@ -2120,7 +2233,7 @@ ${rows.join("\n")}
     }
     try {
       button.click();
-      await sleep(delay);
+      await sleep2(delay);
       return true;
     } catch (error) {
       console.error("点击按钮失败:", error);
@@ -2153,13 +2266,13 @@ ${rows.join("\n")}
       }
     }
   }
-  function extractItemInfoFromRow(tr) {
+  function extractItemInfoFromRow2(tr) {
     try {
       const img = tr.querySelector(SELECTORS.itemImage);
       const imgUrl = img?.src ?? "";
       const itemId = tr.getAttribute(SELECTORS.tableRowKey) ?? "";
       const itemLink = tr.querySelector(SELECTORS.itemLink);
-      const itemName = trim(itemLink?.innerText);
+      const itemName = trim2(itemLink?.innerText);
       if (!itemId) {
         console.warn("商品行缺少 data-row-key 属性", tr);
         return null;
@@ -2176,7 +2289,7 @@ ${rows.join("\n")}
     const lastTd = tds[tds.length - 1];
     return lastTd?.querySelector("button") ?? null;
   }
-  function getTableRows() {
+  function getTableRows2() {
     const tbody = document.querySelector(SELECTORS.tableBody);
     if (!tbody) {
       throw new Error("未找到表格数据 (table > tbody)");
@@ -2195,7 +2308,7 @@ ${rows.join("\n")}
     }
     try {
       tabs[0].click();
-      await sleep(BUTTON_CLICK_DELAY);
+      await sleep2(BUTTON_CLICK_DELAY);
       return true;
     } catch (error) {
       console.error("切换分享 tab 失败:", error);
@@ -2221,10 +2334,10 @@ ${rows.join("\n")}
     return await safeClickButton(buttonList[1], BUTTON_CLICK_DELAY);
   }
   async function waitForDrawerOpen() {
-    await sleep(DRAWER_OPEN_DELAY);
+    await sleep2(DRAWER_OPEN_DELAY);
   }
   async function handleSellTryInfo() {
-    const paginationInfo = getPaginationInfo();
+    const paginationInfo = getPaginationInfo2();
     const { currentPage, totalPages, hasNextPage } = paginationInfo;
     let pagesToFetch = 0;
     if (hasNextPage || totalPages > 1) {
@@ -2288,7 +2401,7 @@ ${rows.join("\n")}
           } else {
             updateProgress(0, 1, "正在获取表格数据...");
           }
-          tableRows = getTableRows();
+          tableRows = getTableRows2();
         } catch (error) {
           console.error("获取表格数据失败:", error);
           alert(error instanceof Error ? error.message : "获取表格数据失败");
@@ -2319,7 +2432,7 @@ ${rows.join("\n")}
             updateProgress(i, totalItems, `正在处理第 ${i + 1} 个商品...`);
           }
           try {
-            const itemInfo = extractItemInfoFromRow(tr);
+            const itemInfo = extractItemInfoFromRow2(tr);
             if (!itemInfo) {
               console.warn("跳过无效商品行");
               continue;
@@ -2385,11 +2498,11 @@ ${JSON.stringify(failData, null, 2)}`);
         }
         if (pageIndex < totalPagesToFetch - 1) {
           console.log(`正在跳转到第 ${pageIndex + 2} 页...`);
-          if (!await clickNextPage()) {
+          if (!await clickNextPage2()) {
             console.warn("翻页失败，停止采集");
             break;
           }
-          if (!await waitForPageLoad()) {
+          if (!await waitForPageLoad2()) {
             console.warn("页面加载失败，停止采集");
             break;
           }
@@ -2403,6 +2516,601 @@ ${JSON.stringify(failData, null, 2)}`);
         alert("未采集到任何数据，请查看控制台日志。");
       } else {
         showResultsTable(allResults);
+      }
+    } catch (error) {
+      console.error("执行过程中发生未捕获错误:", error);
+      alert("执行过程中发生错误，详情请查看控制台。");
+    } finally {
+      overlay.remove();
+    }
+  }
+
+  // Tmall-MySellerEnhance/ui/component/sellTryBasicInfo.ui.ts
+  var toastTimer2 = null;
+  function showToast2(message, duration = 2e3) {
+    if (toastTimer2) {
+      clearTimeout(toastTimer2);
+      const existingToast = document.getElementById("sell-try-basic-info-toast");
+      if (existingToast) {
+        existingToast.remove();
+      }
+    }
+    const toast = document.createElement("div");
+    toast.id = "sell-try-basic-info-toast";
+    Object.assign(toast.style, {
+      position: "fixed",
+      bottom: "20px",
+      left: "50%",
+      transform: "translateX(-50%)",
+      background: "rgba(0, 0, 0, 0.75)",
+      color: "#fff",
+      padding: "10px 20px",
+      borderRadius: "4px",
+      fontSize: "14px",
+      zIndex: "10001",
+      animation: "sellTryBasicInfoFadeIn 0.3s"
+    });
+    toast.textContent = message;
+    const style = document.createElement("style");
+    style.textContent = `
+    @keyframes sellTryBasicInfoFadeIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+  `;
+    if (!document.getElementById("sell-try-basic-info-toast-style")) {
+      style.id = "sell-try-basic-info-toast-style";
+      document.head.appendChild(style);
+    }
+    document.body.appendChild(toast);
+    toastTimer2 = setTimeout(() => {
+      toast.remove();
+      toastTimer2 = null;
+    }, duration);
+  }
+  function createBasicInfoProgressOverlay(totalPages) {
+    const overlay = document.createElement("div");
+    overlay.id = "sell-try-basic-info-overlay";
+    Object.assign(overlay.style, {
+      position: "fixed",
+      top: "0",
+      left: "0",
+      width: "100vw",
+      height: "100vh",
+      backgroundColor: "rgba(0, 0, 0, 0.7)",
+      zIndex: "9999",
+      cursor: "not-allowed",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+    });
+    const content = document.createElement("div");
+    Object.assign(content.style, {
+      textAlign: "center",
+      color: "#fff",
+      padding: "30px 40px",
+      background: "rgba(0, 0, 0, 0.5)",
+      borderRadius: "12px",
+      backdropFilter: "blur(10px)",
+      maxWidth: "450px"
+    });
+    const title = document.createElement("div");
+    Object.assign(title.style, {
+      fontSize: "20px",
+      fontWeight: "600",
+      marginBottom: "20px"
+    });
+    title.textContent = "正在批量获取商品基本信息...";
+    const pageLabel = document.createElement("div");
+    Object.assign(pageLabel.style, {
+      fontSize: "14px",
+      color: "rgba(255, 255, 255, 0.9)",
+      marginBottom: "6px",
+      textAlign: "left",
+      width: "300px"
+    });
+    pageLabel.textContent = "页面进度";
+    const pageProgressContainer = document.createElement("div");
+    Object.assign(pageProgressContainer.style, {
+      width: "300px",
+      height: "10px",
+      background: "rgba(255, 255, 255, 0.2)",
+      borderRadius: "5px",
+      overflow: "hidden",
+      marginBottom: "16px"
+    });
+    const pageProgressBar = document.createElement("div");
+    Object.assign(pageProgressBar.style, {
+      height: "100%",
+      width: "0%",
+      background: "linear-gradient(90deg, #722ed1, #9254de)",
+      borderRadius: "5px",
+      transition: "width 0.3s ease"
+    });
+    pageProgressContainer.appendChild(pageProgressBar);
+    const itemLabel = document.createElement("div");
+    Object.assign(itemLabel.style, {
+      fontSize: "14px",
+      color: "rgba(255, 255, 255, 0.9)",
+      marginBottom: "6px",
+      textAlign: "left",
+      width: "300px"
+    });
+    itemLabel.textContent = "当前页进度";
+    const itemProgressContainer = document.createElement("div");
+    Object.assign(itemProgressContainer.style, {
+      width: "300px",
+      height: "10px",
+      background: "rgba(255, 255, 255, 0.2)",
+      borderRadius: "5px",
+      overflow: "hidden",
+      marginBottom: "16px"
+    });
+    const itemProgressBar = document.createElement("div");
+    Object.assign(itemProgressBar.style, {
+      height: "100%",
+      width: "0%",
+      background: "linear-gradient(90deg, #1890ff, #52c41a)",
+      borderRadius: "5px",
+      transition: "width 0.3s ease"
+    });
+    itemProgressContainer.appendChild(itemProgressBar);
+    const statusText = document.createElement("div");
+    Object.assign(statusText.style, {
+      fontSize: "12px",
+      color: "rgba(255, 255, 255, 0.6)",
+      marginTop: "8px"
+    });
+    const buttonContainer = document.createElement("div");
+    Object.assign(buttonContainer.style, {
+      display: "flex",
+      justifyContent: "center",
+      gap: "12px",
+      marginTop: "20px"
+    });
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "取消采集";
+    Object.assign(cancelBtn.style, {
+      padding: "8px 20px",
+      cursor: "pointer",
+      backgroundColor: "#ff4d4f",
+      color: "#fff",
+      border: "none",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: "500",
+      transition: "all 0.2s ease",
+      boxShadow: "0 2px 8px rgba(255, 77, 79, 0.3)"
+    });
+    cancelBtn.onmouseenter = () => {
+      cancelBtn.style.backgroundColor = "#ff7875";
+      cancelBtn.style.transform = "translateY(-1px)";
+    };
+    cancelBtn.onmouseleave = () => {
+      cancelBtn.style.backgroundColor = "#ff4d4f";
+      cancelBtn.style.transform = "translateY(0)";
+    };
+    buttonContainer.appendChild(cancelBtn);
+    content.appendChild(title);
+    content.appendChild(pageLabel);
+    content.appendChild(pageProgressContainer);
+    content.appendChild(itemLabel);
+    content.appendChild(itemProgressContainer);
+    content.appendChild(statusText);
+    content.appendChild(buttonContainer);
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+    let isCancelled = false;
+    const updateProgress = (pageCurrent, pageTotal, itemCurrent, itemTotal, message) => {
+      const pagePercentage = pageTotal > 0 ? Math.round(pageCurrent / pageTotal * 100) : 0;
+      pageProgressBar.style.width = `${pagePercentage}%`;
+      pageLabel.textContent = `页面进度: ${pageCurrent} / ${pageTotal} (${pagePercentage}%)`;
+      const itemPercentage = itemTotal > 0 ? Math.round(itemCurrent / itemTotal * 100) : 0;
+      itemProgressBar.style.width = `${itemPercentage}%`;
+      itemLabel.textContent = `当前页进度: ${itemCurrent} / ${itemTotal} (${itemPercentage}%)`;
+      statusText.textContent = message;
+      title.textContent = pageCurrent >= pageTotal && itemCurrent >= itemTotal ? "采集完成!" : "正在批量获取商品基本信息...";
+    };
+    const cancelTask = () => {
+      isCancelled = true;
+      cancelBtn.textContent = "已取消";
+      cancelBtn.disabled = true;
+      cancelBtn.style.backgroundColor = "#999";
+      cancelBtn.style.cursor = "not-allowed";
+      statusText.textContent = "正在取消...";
+    };
+    cancelBtn.onclick = () => {
+      cancelTask();
+    };
+    return { overlay, updateProgress, cancelTask, isCancelled: () => isCancelled };
+  }
+  function showBasicInfoResultsTable(results) {
+    const modal = document.createElement("div");
+    modal.id = "sell-try-basic-info-results-modal";
+    Object.assign(modal.style, {
+      position: "fixed",
+      top: "0",
+      left: "0",
+      width: "100vw",
+      height: "100vh",
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      zIndex: "10000",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+    });
+    const container = document.createElement("div");
+    Object.assign(container.style, {
+      display: "flex",
+      flexDirection: "column",
+      backgroundColor: "#fff",
+      borderRadius: "8px",
+      maxWidth: "90%",
+      maxHeight: "90vh",
+      width: "800px",
+      overflow: "hidden"
+    });
+    const header = document.createElement("div");
+    Object.assign(header.style, {
+      padding: "16px 20px",
+      borderBottom: "1px solid #eee",
+      flexShrink: "0",
+      backgroundColor: "#fff"
+    });
+    const title = document.createElement("h2");
+    title.textContent = `批量获取基本信息完成，共 ${results.length} 条数据`;
+    Object.assign(title.style, {
+      margin: "0",
+      fontSize: "18px",
+      fontWeight: "600",
+      color: "#333"
+    });
+    header.appendChild(title);
+    const scrollContainer = document.createElement("div");
+    Object.assign(scrollContainer.style, {
+      flex: "1",
+      overflowY: "auto",
+      overflowX: "hidden"
+    });
+    const table = document.createElement("table");
+    Object.assign(table.style, {
+      width: "100%",
+      borderCollapse: "collapse",
+      fontSize: "14px"
+    });
+    const thead = document.createElement("thead");
+    thead.style.backgroundColor = "#f5f5f5";
+    const headerRow = document.createElement("tr");
+    ["商品图片", "商品ID", "商品标题"].forEach((text) => {
+      const th = document.createElement("th");
+      th.textContent = text;
+      Object.assign(th.style, {
+        border: "1px solid #ddd",
+        padding: "12px 16px",
+        textAlign: "left",
+        backgroundColor: "#f5f5f5",
+        fontWeight: "600",
+        color: "#333",
+        position: "sticky",
+        top: "0",
+        zIndex: "1"
+      });
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    const dataMap = /* @__PURE__ */ new Map();
+    results.forEach((item, index) => {
+      const tr = document.createElement("tr");
+      tr.dataset.index = String(index);
+      dataMap.set(index, item);
+      const tdImg = document.createElement("td");
+      Object.assign(tdImg.style, {
+        border: "1px solid #ddd",
+        padding: "8px",
+        textAlign: "center",
+        verticalAlign: "middle"
+      });
+      tdImg.dataset.type = "image";
+      if (item.imgUrl) {
+        const img = document.createElement("img");
+        img.src = item.imgUrl;
+        Object.assign(img.style, {
+          width: "50px",
+          height: "50px",
+          objectFit: "cover",
+          borderRadius: "4px",
+          cursor: "pointer",
+          border: "2px solid transparent",
+          transition: "border-color 0.2s"
+        });
+        img.title = "点击复制图片URL";
+        tdImg.appendChild(img);
+      }
+      tr.appendChild(tdImg);
+      const tdId = document.createElement("td");
+      tdId.textContent = item.itemId;
+      Object.assign(tdId.style, {
+        border: "1px solid #ddd",
+        padding: "8px",
+        wordBreak: "break-all",
+        cursor: "pointer",
+        maxWidth: "150px",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        transition: "background 0.2s"
+      });
+      tdId.title = "点击复制商品ID";
+      tdId.dataset.type = "item-id";
+      tr.appendChild(tdId);
+      const tdName = document.createElement("td");
+      tdName.textContent = item.itemName;
+      Object.assign(tdName.style, {
+        border: "1px solid #ddd",
+        padding: "8px",
+        maxWidth: "300px",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        cursor: "pointer",
+        transition: "background 0.2s"
+      });
+      tdName.title = "点击复制商品标题";
+      tdName.dataset.type = "item-name";
+      tr.appendChild(tdName);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    scrollContainer.appendChild(table);
+    tbody.addEventListener("click", async (event) => {
+      const target = event.target;
+      const td = target.closest("td");
+      if (!td) return;
+      const tr = td.closest("tr");
+      if (!tr) return;
+      const index = parseInt(tr.dataset.index || "-1", 10);
+      const item = dataMap.get(index);
+      if (!item) return;
+      const type = td.dataset.type;
+      try {
+        if (type === "image") {
+          await copyToClipboard(item.imgUrl);
+          showToast2("图片URL已复制到剪贴板");
+        } else if (type === "item-id") {
+          await copyToClipboard(item.itemId);
+          showToast2("商品ID已复制到剪贴板");
+        } else if (type === "item-name") {
+          await copyToClipboard(item.itemName);
+          showToast2("商品标题已复制到剪贴板");
+        }
+      } catch (e) {
+        console.error("复制失败:", e);
+        showToast2("复制失败，请重试");
+      }
+    });
+    const style = document.createElement("style");
+    style.textContent = `
+    #sell-try-basic-info-results-modal table tbody tr:hover {
+      background: #f9f9f9;
+    }
+    #sell-try-basic-info-results-modal table td[data-type="image"] img:hover {
+      border-color: #1890ff;
+    }
+    #sell-try-basic-info-results-modal table td[data-type="item-id"]:hover,
+    #sell-try-basic-info-results-modal table td[data-type="item-name"]:hover {
+      background: #e6f7ff;
+    }
+  `;
+    document.head.appendChild(style);
+    const footer = document.createElement("div");
+    Object.assign(footer.style, {
+      display: "flex",
+      justifyContent: "flex-end",
+      alignItems: "center",
+      padding: "12px 20px",
+      borderTop: "1px solid #eee",
+      flexShrink: "0",
+      backgroundColor: "#fff",
+      gap: "10px"
+    });
+    const buttonStyle = {
+      padding: "8px 16px",
+      cursor: "pointer",
+      color: "#fff",
+      border: "none",
+      borderRadius: "4px",
+      fontSize: "14px",
+      transition: "background 0.2s"
+    };
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "关闭";
+    Object.assign(closeBtn.style, {
+      ...buttonStyle,
+      backgroundColor: "#666"
+    });
+    closeBtn.onmouseenter = () => {
+      closeBtn.style.backgroundColor = "#787878";
+    };
+    closeBtn.onmouseleave = () => {
+      closeBtn.style.backgroundColor = "#666";
+    };
+    closeBtn.onclick = () => modal.remove();
+    footer.appendChild(closeBtn);
+    const copyAllBtn = document.createElement("button");
+    copyAllBtn.textContent = "复制全部信息";
+    Object.assign(copyAllBtn.style, {
+      ...buttonStyle,
+      backgroundColor: "#1890ff"
+    });
+    copyAllBtn.onmouseenter = () => {
+      copyAllBtn.style.backgroundColor = "#40a9ff";
+    };
+    copyAllBtn.onmouseleave = () => {
+      copyAllBtn.style.backgroundColor = "#1890ff";
+    };
+    copyAllBtn.onclick = async () => {
+      const rows = results.map((item) => {
+        return `  <tr>
+    <td><img src='${item.imgUrl}' width='50' height='50'></td>
+    <td>${item.itemId}</td>
+    <td>${item.itemName}</td>
+  </tr>`;
+      }).join("\n");
+      const tableHtml = `<table>
+${rows}
+</table>`;
+      await copyToClipboard(tableHtml);
+      showToast2("全部信息已复制到剪贴板");
+    };
+    footer.appendChild(copyAllBtn);
+    const copyAllIdsBtn = document.createElement("button");
+    copyAllIdsBtn.textContent = "复制所有商品ID";
+    Object.assign(copyAllIdsBtn.style, {
+      ...buttonStyle,
+      backgroundColor: "#52c41a"
+    });
+    copyAllIdsBtn.onmouseenter = () => {
+      copyAllIdsBtn.style.backgroundColor = "#73d13d";
+    };
+    copyAllIdsBtn.onmouseleave = () => {
+      copyAllIdsBtn.style.backgroundColor = "#52c41a";
+    };
+    copyAllIdsBtn.onclick = async () => {
+      const allItemIds = results.map((r) => r.itemId).join("\n");
+      await copyToClipboard(allItemIds);
+      showToast2("所有商品ID已复制到剪贴板");
+    };
+    footer.appendChild(copyAllIdsBtn);
+    const copyAllNamesBtn = document.createElement("button");
+    copyAllNamesBtn.textContent = "复制所有商品标题";
+    Object.assign(copyAllNamesBtn.style, {
+      ...buttonStyle,
+      backgroundColor: "#722ed1"
+    });
+    copyAllNamesBtn.onmouseenter = () => {
+      copyAllNamesBtn.style.backgroundColor = "#9254de";
+    };
+    copyAllNamesBtn.onmouseleave = () => {
+      copyAllNamesBtn.style.backgroundColor = "#722ed1";
+    };
+    copyAllNamesBtn.onclick = async () => {
+      const allItemNames = results.map((r) => r.itemName).join("\n");
+      await copyToClipboard(allItemNames);
+      showToast2("所有商品标题已复制到剪贴板");
+    };
+    footer.appendChild(copyAllNamesBtn);
+    container.appendChild(header);
+    container.appendChild(scrollContainer);
+    container.appendChild(footer);
+    modal.appendChild(container);
+    modal.onclick = (e) => {
+      if (e.target === modal) modal.remove();
+    };
+    document.body.appendChild(modal);
+  }
+
+  // Tmall-MySellerEnhance/action/sellTryBasicInfo/sellTryBasicInfo.action.ts
+  var BasicInfoDataStore = class {
+    constructor() {
+      __publicField(this, "results", []);
+    }
+    clear() {
+      this.results.length = 0;
+    }
+    add(item) {
+      this.results.push(item);
+    }
+    getAll() {
+      return [...this.results];
+    }
+  };
+  var basicInfoDataStore = new BasicInfoDataStore();
+  async function handleSellTryBasicInfo() {
+    const paginationInfo = getPaginationInfo();
+    const { currentPage, totalPages, hasNextPage } = paginationInfo;
+    let pagesToFetch = 0;
+    if (hasNextPage || totalPages > 1) {
+      const remainingPages = totalPages - currentPage;
+      const input = prompt(
+        `当前第 ${currentPage} 页，共 ${totalPages} 页。
+后续还有 ${remainingPages} 页需要获取。
+
+请输入要向后获取的页数（不输入或输入0则仅获取当前页，输入1为获取两页）:`
+      );
+      pagesToFetch = parseInt(input || "0", 10);
+      if (isNaN(pagesToFetch) || pagesToFetch < 0) pagesToFetch = 0;
+      if (pagesToFetch > remainingPages) pagesToFetch = remainingPages;
+    }
+    const totalPagesToFetch = pagesToFetch + 1;
+    const { overlay, updateProgress, isCancelled } = createBasicInfoProgressOverlay(totalPagesToFetch);
+    try {
+      basicInfoDataStore.clear();
+      let successCount = 0;
+      for (let pageIndex = 0; pageIndex < totalPagesToFetch; pageIndex++) {
+        if (isCancelled()) {
+          console.log("用户取消了采集任务");
+          overlay.remove();
+          return;
+        }
+        let tableRows;
+        try {
+          updateProgress(pageIndex + 1, totalPagesToFetch, 0, 1, "正在获取表格数据...");
+          tableRows = getTableRows();
+        } catch (error) {
+          console.error("获取表格数据失败:", error);
+          alert(error instanceof Error ? error.message : "获取表格数据失败");
+          overlay.remove();
+          return;
+        }
+        const totalItems = tableRows.length;
+        for (let i = 0; i < tableRows.length; i++) {
+          if (isCancelled()) {
+            console.log("用户取消了采集任务");
+            overlay.remove();
+            return;
+          }
+          const tr = tableRows[i];
+          updateProgress(pageIndex + 1, totalPagesToFetch, i + 1, totalItems, `正在获取第 ${pageIndex + 1} 页第 ${i + 1} 个商品信息...`);
+          try {
+            const itemInfo = extractItemInfoFromRow(tr);
+            if (!itemInfo) {
+              console.warn("跳过无效商品行");
+              continue;
+            }
+            basicInfoDataStore.add(itemInfo);
+            console.log(`已获取商品：${itemInfo.itemId} - ${itemInfo.itemName}`);
+            successCount++;
+            updateProgress(pageIndex + 1, totalPagesToFetch, i + 1, totalItems, `已获取: ${itemInfo.itemId}`);
+            await sleep(50);
+          } catch (error) {
+            console.error(`处理商品行时发生错误:`, error, tr);
+          }
+        }
+        if (pageIndex < totalPagesToFetch - 1) {
+          console.log(`正在跳转到第 ${pageIndex + 2} 页...`);
+          updateProgress(pageIndex + 1, totalPagesToFetch, totalItems, totalItems, `正在翻页到第 ${pageIndex + 2} 页...`);
+          if (!await clickNextPage()) {
+            console.warn("翻页失败，停止采集");
+            break;
+          }
+          if (!await waitForPageLoad()) {
+            console.warn("页面加载失败，停止采集");
+            break;
+          }
+        }
+      }
+      const allResults = basicInfoDataStore.getAll();
+      console.log(`采集完成，成功 ${successCount} 条`);
+      console.log("获取到的所有信息：", allResults);
+      if (allResults.length === 0) {
+        alert("未采集到任何数据，请查看控制台日志。");
+      } else {
+        showBasicInfoResultsTable(allResults);
       }
     } catch (error) {
       console.error("执行过程中发生未捕获错误:", error);
@@ -2442,6 +3150,16 @@ ${JSON.stringify(failData, null, 2)}`);
     const href = window.location.href;
     const matchPattern = /home\.htm\/trade-try-buy\/merchList/;
     return matchPattern.test(href);
+  }
+
+  // Tmall-MySellerEnhance/match/sellTryBasicInfo.match.ts
+  function sellTryBasicInfoMatch() {
+    const url = window.location.href;
+    const isSellTryMerchList = url.includes("trade-try-buy/merchList") || url.includes("trade-try-buy%2FmerchList");
+    const hasPagination = document.querySelector("ul.tbd-pagination") !== null;
+    const hasTableBody = document.querySelector("table > tbody") !== null;
+    const hasTableRows = document.querySelector("tr[data-row-key]") !== null;
+    return isSellTryMerchList && hasPagination && hasTableBody && hasTableRows;
   }
 
   // Tmall-MySellerEnhance/actions.ts
@@ -2485,6 +3203,16 @@ ${JSON.stringify(failData, null, 2)}`);
       onClick: handleSellTryInfo,
       // match 函数：从 match 目录导入
       match: sellTryInfoMatch,
+      // 点击click之后关闭侧边抽屉
+      clickDrawerHide: true
+    },
+    {
+      id: "sell-try-basic-info",
+      label: "批量获取基本信息",
+      icon: "📋",
+      onClick: handleSellTryBasicInfo,
+      // match 函数：从 match 目录导入
+      match: sellTryBasicInfoMatch,
       // 点击click之后关闭侧边抽屉
       clickDrawerHide: true
     }

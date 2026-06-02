@@ -5,14 +5,20 @@
  */
 
 export const HIDE_ORIGINAL_STYLES = `
-  /* 隐藏原始界面，但保留我们的新界面 */
-  body > *:not(#llm-enhance-container):not(#llm-enhance-styles):not(#llm-enhance-hide-original) {
+  /* 隐藏原始界面，但保留我们的新界面和切换按钮 */
+  body > *:not(#llm-enhance-container):not(#llm-enhance-styles):not(#llm-enhance-hide-original):not(#llm-enhance-toggle-btn) {
     display: none !important;
   }
   
   /* 确保新界面可见 */
   #llm-enhance-container {
     display: block !important;
+    visibility: visible !important;
+  }
+
+  /* 确保切换按钮始终可见 */
+  #llm-enhance-toggle-btn {
+    display: flex !important;
     visibility: visible !important;
   }
 `;

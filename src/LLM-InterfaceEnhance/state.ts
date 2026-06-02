@@ -27,6 +27,9 @@ export const state = {
 
   /** 新界面是否已创建 */
   newInterfaceCreated: false as boolean,
+
+  /** 增强面板是否可见 */
+  enhancedPanelVisible: false as boolean,
 };
 
 /**

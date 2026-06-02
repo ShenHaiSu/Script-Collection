@@ -3,4 +3,13 @@
  */
 
 export { deepseekAdapter } from "./config";
-export { parseDeepSeekResponse, parseDeepSeekHTML } from "./parser";
+export {
+  parseDeepSeekResponse,
+  parseDeepSeekCostResponse,
+  parseDeepSeekHTML,
+} from "./parser";
+export {
+  fetchUsageAmount,
+  fetchUsageCost,
+  fetchAllDeepSeekData,
+} from "./fetcher";

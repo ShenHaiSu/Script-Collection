@@ -8,7 +8,7 @@ import { state, resetState } from "../state";
 import { meta } from "../meta";
 import type { PlatformAdapter } from "../platforms/types";
 import type { Settings, DEFAULT_SETTINGS } from "../types";
-import { hideOriginalInterface, showOriginalInterface } from "../core/ui-manager";
+import { hideEnhancedPanel } from "../core/ui-manager";
 import { MODAL_STYLES } from "./styles/modal.css";
 import { renderSettingsModalHTML } from "./templates/settings-modal.html";
 
@@ -24,17 +24,11 @@ export function bindEvents(): void {
     });
   }
 
-  // 显示/隐藏原始界面按钮
+  // 显示原始界面按钮（同时隐藏增强面板）
   const toggleBtn = document.getElementById("llm-enhance-toggle-original");
   if (toggleBtn) {
     toggleBtn.addEventListener("click", () => {
-      if (state.originalInterfaceHidden) {
-        showOriginalInterface();
-        toggleBtn.textContent = "隐藏原始界面";
-      } else {
-        hideOriginalInterface();
-        toggleBtn.textContent = "显示原始界面";
-      }
+      hideEnhancedPanel();
     });
   }
 

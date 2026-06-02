@@ -178,4 +178,36 @@ export const MAIN_STYLES = `
       font-size: 24px;
     }
   }
+
+  /* 入口切换按钮 */
+  #llm-enhance-toggle-btn {
+    position: fixed;
+    top: 8px;
+    right: 20px;
+    z-index: 2147483647;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    background: rgb(0, 0, 0);
+    color: white;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s, transform 0.1s;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    line-height: 1;
+  }
+
+  #llm-enhance-toggle-btn:hover {
+    background: rgb(40, 40, 40);
+    transform: scale(1.05);
+  }
+
+  #llm-enhance-toggle-btn:active {
+    transform: scale(0.95);
+  }
 `;

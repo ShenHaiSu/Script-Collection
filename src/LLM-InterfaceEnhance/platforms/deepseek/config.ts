@@ -5,7 +5,7 @@
  */
 
 import type { PlatformAdapter } from "../types";
-import { parseDeepSeekResponse, parseDeepSeekHTML } from "./parser";
+import { parseDeepSeekResponse, parseDeepSeekCostResponse, parseDeepSeekHTML } from "./parser";
 
 /**
  * DeepSeek 平台适配器
@@ -18,9 +18,8 @@ export const deepseekAdapter: PlatformAdapter = {
 
   /** 需要拦截的 API 路径 */
   interceptPaths: [
-    "/api/user/usage",
-    "/api/user/billing",
-    "/api/usage",
+    "/api/v0/usage/amount",
+    "/api/v0/usage/cost",
   ],
 
   /** 页面 DOM 选择器 */
@@ -45,6 +44,10 @@ export const deepseekAdapter: PlatformAdapter = {
    * @returns 解析后的使用数据
    */
   parseResponse(responseData) {
+    // 根据请求 URL 区分使用不同的解析器
+    if (responseData.url.includes("/api/v0/usage/cost")) {
+      return parseDeepSeekCostResponse(responseData);
+    }
     return parseDeepSeekResponse(responseData);
   },
 
